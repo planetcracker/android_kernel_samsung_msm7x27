@@ -24,6 +24,7 @@
 #include "input-compat.h"
 
 struct evdev {
+	int exist;
 	int open;
 	int minor;
 	struct input_handle handle;
@@ -33,7 +34,6 @@ struct evdev {
 	spinlock_t client_lock; /* protects client_list */
 	struct mutex mutex;
 	struct device dev;
-	bool exist;
 };
 
 struct evdev_client {
@@ -637,7 +637,13 @@ static long evdev_do_ioctl(struct file *file, unsigned int cmd,
 			if ((_IOC_NR(cmd) & ~ABS_MAX) == _IOC_NR(EVIOCGABS(0))) {
 
 				t = _IOC_NR(cmd) & ABS_MAX;
-				abs = dev->absinfo[t];
+
+				abs.value = dev->abs[t];
+				abs.minimum = dev->absmin[t];
+				abs.maximum = dev->absmax[t];
+				abs.fuzz = dev->absfuzz[t];
+				abs.flat = dev->absflat[t];
+				abs.resolution = dev->absres[t];
 
 				if (copy_to_user(p, &abs, min_t(size_t,
 								_IOC_SIZE(cmd),
@@ -673,20 +679,21 @@ static long evdev_do_ioctl(struct file *file, unsigned int cmd,
 								  sizeof(struct input_absinfo))))
 					return -EFAULT;
 
-				if (_IOC_SIZE(cmd) < sizeof(struct input_absinfo))
-					abs.resolution = 0;
-
-				/* We can't change number of reserved MT slots */
-				if (t == ABS_MT_SLOT)
-					return -EINVAL;
-
 				/*
 				 * Take event lock to ensure that we are not
 				 * changing device parameters in the middle
 				 * of event.
 				 */
 				spin_lock_irq(&dev->event_lock);
-				dev->absinfo[t] = abs;
+
+				dev->abs[t] = abs.value;
+				dev->absmin[t] = abs.minimum;
+				dev->absmax[t] = abs.maximum;
+				dev->absfuzz[t] = abs.fuzz;
+				dev->absflat[t] = abs.flat;
+				dev->absres[t] = _IOC_SIZE(cmd) < sizeof(struct input_absinfo) ?
+							0 : abs.resolution;
+
 				spin_unlock_irq(&dev->event_lock);
 
 				return 0;
@@ -775,7 +782,7 @@ static void evdev_remove_chrdev(struct evdev *evdev)
 static void evdev_mark_dead(struct evdev *evdev)
 {
 	mutex_lock(&evdev->mutex);
-	evdev->exist = false;
+	evdev->exist = 0;
 	mutex_unlock(&evdev->mutex);
 }
 
@@ -824,7 +831,7 @@ static int evdev_connect(struct input_handler *handler, struct input_dev *dev,
 	init_waitqueue_head(&evdev->wait);
 
 	dev_set_name(&evdev->dev, "event%d", minor);
-	evdev->exist = true;
+	evdev->exist = 1;
 	evdev->minor = minor;
 
 	evdev->handle.dev = input_get_device(dev);

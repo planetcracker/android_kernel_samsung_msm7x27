@@ -1198,6 +1198,15 @@ struct input_dev {
 	unsigned long snd[BITS_TO_LONGS(SND_CNT)];
 	unsigned long sw[BITS_TO_LONGS(SW_CNT)];
 
+<<<<<<< HEAD
+=======
+	int absmax[ABS_MAX + 1];
+	int absmin[ABS_MAX + 1];
+	int absfuzz[ABS_MAX + 1];
+	int absflat[ABS_MAX + 1];
+	int absres[ABS_MAX + 1];
+
+>>>>>>> ec20a02... Input: synaptics - add support for reporting x/y resolution
 	int (*open)(struct input_dev *dev);
 	void (*close)(struct input_dev *dev);
 	int (*flush)(struct input_dev *dev, struct file *file);

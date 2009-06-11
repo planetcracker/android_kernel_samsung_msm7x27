@@ -201,18 +201,26 @@ static int synaptics_identify(struct psmouse *psmouse)
 }
 
 /*
+<<<<<<< HEAD
  * Read touchpad resolution and maximum reported coordinates
+=======
+ * Read touchpad resolution
+>>>>>>> ec20a02... Input: synaptics - add support for reporting x/y resolution
  * Resolution is left zero if touchpad does not support the query
  */
 static int synaptics_resolution(struct psmouse *psmouse)
 {
 	struct synaptics_data *priv = psmouse->private;
 	unsigned char res[3];
+<<<<<<< HEAD
 	unsigned char max[3];
+=======
+>>>>>>> ec20a02... Input: synaptics - add support for reporting x/y resolution
 
 	if (SYN_ID_MAJOR(priv->identity) < 4)
 		return 0;
 
+<<<<<<< HEAD
 	if (synaptics_send_cmd(psmouse, SYN_QUE_RESOLUTION, res) == 0) {
 		if (res[0] != 0 && (res[1] & 0x80) && res[2] != 0) {
 			priv->x_res = res[0]; /* x resolution in units/mm */
@@ -229,6 +237,14 @@ static int synaptics_resolution(struct psmouse *psmouse)
 			priv->x_max = (max[0] << 5) | ((max[1] & 0x0f) << 1);
 			priv->y_max = (max[2] << 5) | ((max[1] & 0xf0) >> 3);
 		}
+=======
+	if (synaptics_send_cmd(psmouse, SYN_QUE_RESOLUTION, res))
+		return 0;
+
+	if ((res[0] != 0) && (res[1] & 0x80) && (res[2] != 0)) {
+		priv->x_res = res[0]; /* x resolution in units/mm */
+		priv->y_res = res[2]; /* y resolution in units/mm */
+>>>>>>> ec20a02... Input: synaptics - add support for reporting x/y resolution
 	}
 
 	return 0;
@@ -631,6 +647,7 @@ static void set_input_params(struct input_dev *dev, struct synaptics_data *priv)
 	__clear_bit(REL_X, dev->relbit);
 	__clear_bit(REL_Y, dev->relbit);
 
+<<<<<<< HEAD
 	input_abs_set_res(dev, ABS_X, priv->x_res);
 	input_abs_set_res(dev, ABS_Y, priv->y_res);
 
@@ -639,6 +656,14 @@ static void set_input_params(struct input_dev *dev, struct synaptics_data *priv)
 		__clear_bit(BTN_RIGHT, dev->keybit);
 		__clear_bit(BTN_MIDDLE, dev->keybit);
 	}
+=======
+	clear_bit(EV_REL, dev->evbit);
+	clear_bit(REL_X, dev->relbit);
+	clear_bit(REL_Y, dev->relbit);
+
+	dev->absres[ABS_X] = priv->x_res;
+	dev->absres[ABS_Y] = priv->y_res;
+>>>>>>> ec20a02... Input: synaptics - add support for reporting x/y resolution
 }
 
 static void synaptics_disconnect(struct psmouse *psmouse)

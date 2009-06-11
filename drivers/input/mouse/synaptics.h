@@ -104,8 +104,13 @@ struct synaptics_data {
 	unsigned long int ext_cap;		/* Extended Capabilities */
 	unsigned long int ext_cap_0c;		/* Ext Caps from 0x0c query */
 	unsigned long int identity;		/* Identification */
+<<<<<<< HEAD
 	unsigned int x_res, y_res;		/* X/Y resolution in units/mm */
 	unsigned int x_max, y_max;		/* Max dimensions (from FW) */
+=======
+	int x_res;				/* X resolution in units/mm */
+	int y_res;				/* Y resolution in units/mm */
+>>>>>>> ec20a02... Input: synaptics - add support for reporting x/y resolution
 
 	unsigned char pkt_type;			/* packet type - old, new, etc */
 	unsigned char mode;			/* current mode byte */
