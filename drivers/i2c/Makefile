@@ -10,6 +10,4 @@ obj-y				+= busses/ chips/ algos/
 obj-$(CONFIG_I2C_MUX)		+= i2c-mux.o
 obj-y				+= algos/ busses/
 
-ifeq ($(CONFIG_I2C_DEBUG_CORE),y)
-EXTRA_CFLAGS += -DDEBUG
-endif
+ccflags-$(CONFIG_I2C_DEBUG_CORE) := -DDEBUG
