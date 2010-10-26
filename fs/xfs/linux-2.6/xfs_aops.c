@@ -1170,6 +1170,10 @@ xfs_page_state_convert(
 			} else {
 				type = IO_NEW;
 				flags = BMAPI_WRITE | BMAPI_MMAP;
+				flags = BMAPI_ALLOCATE;
+
+				if (wbc->sync_mode == WB_SYNC_NONE)
+					flags |= BMAPI_TRYLOCK;
 			}
 
 			if (!imap_valid) {
