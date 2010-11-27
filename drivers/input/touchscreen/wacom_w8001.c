@@ -167,6 +167,41 @@ static int w8001_setup(struct w8001 *w8001)
 	input_set_abs_params(dev, ABS_TILT_X, 0, coord.tilt_x, 0, 0);
 	input_set_abs_params(dev, ABS_TILT_Y, 0, coord.tilt_y, 0, 0);
 
+<<<<<<< HEAD
+=======
+	error = w8001_command(w8001, W8001_CMD_TOUCHQUERY, true);
+	if (!error) {
+		struct w8001_touch_query touch;
+
+		parse_touchquery(w8001->response, &touch);
+
+		switch (touch.sensor_id) {
+		case 0:
+		case 2:
+			w8001->pktlen = W8001_PKTLEN_TOUCH93;
+			break;
+		case 1:
+		case 3:
+		case 4:
+			w8001->pktlen = W8001_PKTLEN_TOUCH9A;
+			break;
+		case 5:
+			w8001->pktlen = W8001_PKTLEN_TOUCH2FG;
+
+			input_mt_init_slots(dev, 2);
+			input_set_abs_params(dev, ABS_MT_TRACKING_ID,
+						0, MAX_TRACKING_ID, 0, 0);
+			input_set_abs_params(dev, ABS_MT_POSITION_X,
+						0, touch.x, 0, 0);
+			input_set_abs_params(dev, ABS_MT_POSITION_Y,
+						0, touch.y, 0, 0);
+			input_set_abs_params(dev, ABS_MT_TOOL_TYPE,
+						0, 0, 0, 0);
+			break;
+		}
+	}
+
+>>>>>>> 8cde810... input: mt: Collect slots initialization code
 	return w8001_command(w8001, W8001_CMD_START, false);
 }
 

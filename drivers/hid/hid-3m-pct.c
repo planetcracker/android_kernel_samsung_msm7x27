@@ -25,6 +25,16 @@ MODULE_LICENSE("GPL");
 
 #include "hid-ids.h"
 
+<<<<<<< HEAD
+=======
+#define MAX_SLOTS		60
+#define MAX_TRKID		USHRT_MAX
+
+/* estimated signal-to-noise ratios */
+#define SN_MOVE			2048
+#define SN_WIDTH		128
+
+>>>>>>> 8cde810... input: mt: Collect slots initialization code
 struct mmm_finger {
 	__s32 x, y, w, h;
 	__u8 rank;
@@ -97,6 +107,12 @@ static int mmm_input_mapping(struct hid_device *hdev, struct hid_input *hi,
 			field->logical_maximum = 59;
 			hid_map_usage(hi, usage, bit, max,
 					EV_ABS, ABS_MT_TRACKING_ID);
+<<<<<<< HEAD
+=======
+			input_set_abs_params(hi->input, ABS_MT_TRACKING_ID,
+					     0, MAX_TRKID, 0, 0);
+			input_mt_init_slots(hi->input, MAX_SLOTS);
+>>>>>>> 8cde810... input: mt: Collect slots initialization code
 			return 1;
 		}
 		/* let hid-input decide for the others */

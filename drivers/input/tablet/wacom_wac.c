@@ -1039,6 +1039,41 @@ void wacom_setup_input_capabilities(struct input_dev *input_dev,
 	case PENPARTNER:
 		__set_bit(BTN_TOOL_RUBBER, input_dev->keybit);
 		break;
+<<<<<<< HEAD
+=======
+
+	case BAMBOO_PT:
+		__clear_bit(ABS_MISC, input_dev->absbit);
+
+		if (features->device_type == BTN_TOOL_TRIPLETAP) {
+			__set_bit(BTN_LEFT, input_dev->keybit);
+			__set_bit(BTN_FORWARD, input_dev->keybit);
+			__set_bit(BTN_BACK, input_dev->keybit);
+			__set_bit(BTN_RIGHT, input_dev->keybit);
+
+			__set_bit(BTN_TOOL_FINGER, input_dev->keybit);
+			__set_bit(BTN_TOOL_DOUBLETAP, input_dev->keybit);
+
+			input_mt_init_slots(input_dev, 2);
+			input_set_abs_params(input_dev, ABS_MT_POSITION_X,
+					     0, features->x_max,
+					     features->x_fuzz, 0);
+			input_set_abs_params(input_dev, ABS_MT_POSITION_Y,
+					     0, features->y_max,
+					     features->y_fuzz, 0);
+			input_set_abs_params(input_dev, ABS_MT_PRESSURE,
+					     0, features->pressure_max,
+					     features->pressure_fuzz, 0);
+			input_set_abs_params(input_dev, ABS_MT_TRACKING_ID, 0,
+					     MAX_TRACKING_ID, 0, 0);
+		} else if (features->device_type == BTN_TOOL_PEN) {
+			__set_bit(BTN_TOOL_RUBBER, input_dev->keybit);
+			__set_bit(BTN_TOOL_PEN, input_dev->keybit);
+			__set_bit(BTN_STYLUS, input_dev->keybit);
+			__set_bit(BTN_STYLUS2, input_dev->keybit);
+		}
+		break;
+>>>>>>> 8cde810... input: mt: Collect slots initialization code
 	}
 }
 
