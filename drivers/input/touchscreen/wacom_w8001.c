@@ -35,6 +35,17 @@ MODULE_LICENSE("GPL");
 
 #define W8001_CMD_START		'1'
 #define W8001_CMD_QUERY		'*'
+<<<<<<< HEAD
+=======
+#define W8001_CMD_TOUCHQUERY	'%'
+
+/* length of data packets in bytes, depends on device. */
+#define W8001_PKTLEN_TOUCH93	5
+#define W8001_PKTLEN_TOUCH9A	7
+#define W8001_PKTLEN_TPCPEN	9
+#define W8001_PKTLEN_TPCCTL	11	/* control packet */
+#define W8001_PKTLEN_TOUCH2FG	13
+>>>>>>> c5f4dec... input: mt: Move tracking and pointer emulation to input-mt
 
 struct w8001_coord {
 	u8 rdy;
@@ -62,6 +73,11 @@ struct w8001 {
 	unsigned char response[W8001_MAX_LENGTH];
 	unsigned char data[W8001_MAX_LENGTH];
 	char phys[32];
+<<<<<<< HEAD
+=======
+	int type;
+	unsigned int pktlen;
+>>>>>>> c5f4dec... input: mt: Move tracking and pointer emulation to input-mt
 };
 
 static void parse_data(u8 *data, struct w8001_coord *coord)
@@ -88,6 +104,92 @@ static void parse_data(u8 *data, struct w8001_coord *coord)
 	coord->tilt_y = data[8] & 0x7F;
 }
 
+<<<<<<< HEAD
+=======
+static void parse_touch(struct w8001 *w8001)
+{
+	struct input_dev *dev = w8001->dev;
+	unsigned char *data = w8001->data;
+	int i;
+
+	for (i = 0; i < 2; i++) {
+		bool touch = data[0] & (1 << i);
+
+		input_mt_slot(dev, i);
+		input_mt_report_slot_state(dev, MT_TOOL_FINGER, touch);
+		if (touch) {
+			int x = (data[6 * i + 1] << 7) | (data[6 * i + 2]);
+			int y = (data[6 * i + 3] << 7) | (data[6 * i + 4]);
+			/* data[5,6] and [11,12] is finger capacity */
+
+			input_report_abs(dev, ABS_MT_POSITION_X, x);
+			input_report_abs(dev, ABS_MT_POSITION_Y, y);
+		}
+	}
+
+	input_sync(dev);
+}
+
+static void parse_touchquery(u8 *data, struct w8001_touch_query *query)
+{
+	memset(query, 0, sizeof(*query));
+
+	query->panel_res = data[1];
+	query->sensor_id = data[2] & 0x7;
+	query->capacity_res = data[7];
+
+	query->x = data[3] << 9;
+	query->x |= data[4] << 2;
+	query->x |= (data[2] >> 5) & 0x3;
+
+	query->y = data[5] << 9;
+	query->y |= data[6] << 2;
+	query->y |= (data[2] >> 3) & 0x3;
+}
+
+static void report_pen_events(struct w8001 *w8001, struct w8001_coord *coord)
+{
+	struct input_dev *dev = w8001->dev;
+
+	/*
+	 * We have 1 bit for proximity (rdy) and 3 bits for tip, side,
+	 * side2/eraser. If rdy && f2 are set, this can be either pen + side2,
+	 * or eraser. assume
+	 * - if dev is already in proximity and f2 is toggled → pen + side2
+	 * - if dev comes into proximity with f2 set → eraser
+	 * If f2 disappears after assuming eraser, fake proximity out for
+	 * eraser and in for pen.
+	 */
+
+	if (!w8001->type) {
+		w8001->type = coord->f2 ? BTN_TOOL_RUBBER : BTN_TOOL_PEN;
+	} else if (w8001->type == BTN_TOOL_RUBBER) {
+		if (!coord->f2) {
+			input_report_abs(dev, ABS_PRESSURE, 0);
+			input_report_key(dev, BTN_TOUCH, 0);
+			input_report_key(dev, BTN_STYLUS, 0);
+			input_report_key(dev, BTN_STYLUS2, 0);
+			input_report_key(dev, BTN_TOOL_RUBBER, 0);
+			input_sync(dev);
+			w8001->type = BTN_TOOL_PEN;
+		}
+	} else {
+		input_report_key(dev, BTN_STYLUS2, coord->f2);
+	}
+
+	input_report_abs(dev, ABS_X, coord->x);
+	input_report_abs(dev, ABS_Y, coord->y);
+	input_report_abs(dev, ABS_PRESSURE, coord->pen_pressure);
+	input_report_key(dev, BTN_TOUCH, coord->tsw);
+	input_report_key(dev, BTN_STYLUS, coord->f1);
+	input_report_key(dev, w8001->type, coord->rdy);
+	input_sync(dev);
+
+	if (!coord->rdy)
+		w8001->type = 0;
+}
+
+>>>>>>> c5f4dec... input: mt: Move tracking and pointer emulation to input-mt
 static irqreturn_t w8001_interrupt(struct serio *serio,
 				   unsigned char data, unsigned int flags)
 {
@@ -189,14 +291,12 @@ static int w8001_setup(struct w8001 *w8001)
 			w8001->pktlen = W8001_PKTLEN_TOUCH2FG;
 
 			input_mt_init_slots(dev, 2);
-			input_set_abs_params(dev, ABS_MT_TRACKING_ID,
-						0, MAX_TRACKING_ID, 0, 0);
 			input_set_abs_params(dev, ABS_MT_POSITION_X,
 						0, touch.x, 0, 0);
 			input_set_abs_params(dev, ABS_MT_POSITION_Y,
 						0, touch.y, 0, 0);
 			input_set_abs_params(dev, ABS_MT_TOOL_TYPE,
-						0, 0, 0, 0);
+						0, MT_TOOL_MAX, 0, 0);
 			break;
 		}
 	}

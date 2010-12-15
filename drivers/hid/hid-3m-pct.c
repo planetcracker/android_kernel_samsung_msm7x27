@@ -28,7 +28,6 @@ MODULE_LICENSE("GPL");
 <<<<<<< HEAD
 =======
 #define MAX_SLOTS		60
-#define MAX_TRKID		USHRT_MAX
 
 /* estimated signal-to-noise ratios */
 #define SN_MOVE			2048
@@ -37,13 +36,22 @@ MODULE_LICENSE("GPL");
 >>>>>>> 8cde810... input: mt: Collect slots initialization code
 struct mmm_finger {
 	__s32 x, y, w, h;
+<<<<<<< HEAD
 	__u8 rank;
+=======
+>>>>>>> c5f4dec... input: mt: Move tracking and pointer emulation to input-mt
 	bool touch, valid;
 };
 
 struct mmm_data {
+<<<<<<< HEAD
 	struct mmm_finger f[10];
 	__u8 curid, num;
+=======
+	struct mmm_finger f[MAX_SLOTS];
+	__u8 curid;
+	__u8 nexp, nreal;
+>>>>>>> c5f4dec... input: mt: Move tracking and pointer emulation to input-mt
 	bool touch, valid;
 };
 
@@ -104,6 +112,7 @@ static int mmm_input_mapping(struct hid_device *hdev, struct hid_input *hi,
 					1, 1, 0, 0);
 			return 1;
 		case HID_DG_CONTACTID:
+<<<<<<< HEAD
 			field->logical_maximum = 59;
 			hid_map_usage(hi, usage, bit, max,
 					EV_ABS, ABS_MT_TRACKING_ID);
@@ -111,6 +120,8 @@ static int mmm_input_mapping(struct hid_device *hdev, struct hid_input *hi,
 =======
 			input_set_abs_params(hi->input, ABS_MT_TRACKING_ID,
 					     0, MAX_TRKID, 0, 0);
+=======
+>>>>>>> c5f4dec... input: mt: Move tracking and pointer emulation to input-mt
 			input_mt_init_slots(hi->input, MAX_SLOTS);
 >>>>>>> 8cde810... input: mt: Collect slots initialization code
 			return 1;
@@ -142,8 +153,11 @@ static int mmm_input_mapped(struct hid_device *hdev, struct hid_input *hi,
  */
 static void mmm_filter_event(struct mmm_data *md, struct input_dev *input)
 {
+<<<<<<< HEAD
 	struct mmm_finger *oldest = 0;
 	bool pressed = false, released = false;
+=======
+>>>>>>> c5f4dec... input: mt: Move tracking and pointer emulation to input-mt
 	int i;
 
 	/*
@@ -154,6 +168,7 @@ static void mmm_filter_event(struct mmm_data *md, struct input_dev *input)
 		struct mmm_finger *f = &md->f[i];
 		if (!f->valid) {
 			/* this finger is just placeholder data, ignore */
+<<<<<<< HEAD
 		} else if (f->touch) {
 			/* this finger is on the screen */
 			int wide = (f->w > f->h);
@@ -194,10 +209,29 @@ static void mmm_filter_event(struct mmm_data *md, struct input_dev *input)
 			--(md->num);
 			if (md->num == 0)
 				released = true;
+=======
+			continue;
+		}
+		input_mt_slot(input, i);
+		input_mt_report_slot_state(input, MT_TOOL_FINGER, f->touch);
+		if (f->touch) {
+			/* this finger is on the screen */
+			int wide = (f->w > f->h);
+			/* divided by two to match visual scale of touch */
+			int major = max(f->w, f->h) >> 1;
+			int minor = min(f->w, f->h) >> 1;
+
+			input_event(input, EV_ABS, ABS_MT_POSITION_X, f->x);
+			input_event(input, EV_ABS, ABS_MT_POSITION_Y, f->y);
+			input_event(input, EV_ABS, ABS_MT_ORIENTATION, wide);
+			input_event(input, EV_ABS, ABS_MT_TOUCH_MAJOR, major);
+			input_event(input, EV_ABS, ABS_MT_TOUCH_MINOR, minor);
+>>>>>>> c5f4dec... input: mt: Move tracking and pointer emulation to input-mt
 		}
 		f->valid = 0;
 	}
 
+<<<<<<< HEAD
 	/* touchscreen emulation */
 	if (oldest) {
 		if (pressed)
@@ -207,6 +241,10 @@ static void mmm_filter_event(struct mmm_data *md, struct input_dev *input)
 	} else if (released) {
 		input_event(input, EV_KEY, BTN_TOUCH, 0);
 	}
+=======
+	input_mt_report_pointer_emulation(input, true);
+	input_sync(input);
+>>>>>>> c5f4dec... input: mt: Move tracking and pointer emulation to input-mt
 }
 
 /*

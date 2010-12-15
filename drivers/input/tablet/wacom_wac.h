@@ -37,6 +37,13 @@
 #define WACOM_REPORT_TPC1FG		6
 #define WACOM_REPORT_TPC2FG		13
 
+<<<<<<< HEAD
+=======
+/* device quirks */
+#define WACOM_QUIRK_MULTI_INPUT		0x0001
+#define WACOM_QUIRK_BBTOUCH_LOWRES	0x0002
+
+>>>>>>> c5f4dec... input: mt: Move tracking and pointer emulation to input-mt
 enum {
 	PENPARTNER = 0,
 	GRAPHIRE,
