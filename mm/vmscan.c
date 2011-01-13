@@ -53,22 +53,22 @@
 #include <trace/events/vmscan.h>
 
 /*
- * lumpy_mode determines how the inactive list is shrunk
- * LUMPY_MODE_SINGLE: Reclaim only order-0 pages
- * LUMPY_MODE_ASYNC:  Do not block
- * LUMPY_MODE_SYNC:   Allow blocking e.g. call wait_on_page_writeback
- * LUMPY_MODE_CONTIGRECLAIM: For high-order allocations, take a reference
+ * reclaim_mode determines how the inactive list is shrunk
+ * RECLAIM_MODE_SINGLE: Reclaim only order-0 pages
+ * RECLAIM_MODE_ASYNC:  Do not block
+ * RECLAIM_MODE_SYNC:   Allow blocking e.g. call wait_on_page_writeback
+ * RECLAIM_MODE_LUMPYRECLAIM: For high-order allocations, take a reference
  *			page from the LRU and reclaim all pages within a
  *			naturally aligned range
- * LUMPY_MODE_COMPACTION: For high-order allocations, reclaim a number of
- *      order-0 pages and then compact the zone
+ * RECLAIM_MODE_COMPACTION: For high-order allocations, reclaim a number of
+ *			order-0 pages and then compact the zone
  */
-typedef unsigned __bitwise__ lumpy_mode;
-#define LUMPY_MODE_SINGLE		((__force lumpy_mode)0x01u)
-#define LUMPY_MODE_ASYNC		((__force lumpy_mode)0x02u)
-#define LUMPY_MODE_SYNC			((__force lumpy_mode)0x04u)
-#define LUMPY_MODE_CONTIGRECLAIM	((__force lumpy_mode)0x08u)
-#define LUMPY_MODE_COMPACTION    ((__force lumpy_mode)0x10u)
+typedef unsigned __bitwise__ reclaim_mode_t;
+#define RECLAIM_MODE_SINGLE		((__force reclaim_mode_t)0x01u)
+#define RECLAIM_MODE_ASYNC		((__force reclaim_mode_t)0x02u)
+#define RECLAIM_MODE_SYNC		((__force reclaim_mode_t)0x04u)
+#define RECLAIM_MODE_LUMPYRECLAIM	((__force reclaim_mode_t)0x08u)
+#define RECLAIM_MODE_COMPACTION		((__force reclaim_mode_t)0x10u)
 
 struct scan_control {
 	/* Incremented by the number of inactive pages that were scanned */
@@ -101,7 +101,7 @@ struct scan_control {
 	 * Intend to reclaim enough contenious memory rather than to reclaim
 	 * enough amount memory. I.e, it's the mode for high order allocation.
 	 */
-	lumpy_mode lumpy_reclaim_mode;
+	reclaim_mode_t reclaim_mode;
 
 	/* Which cgroup do we reclaim from */
 	struct mem_cgroup *mem_cgroup;
@@ -309,10 +309,10 @@ out:
 	return ret;
 }
 
-static void set_lumpy_reclaim_mode(int priority, struct scan_control *sc,
+static void set_reclaim_mode(int priority, struct scan_control *sc,
 				   bool sync)
 {
-	lumpy_mode syncmode = sync ? LUMPY_MODE_SYNC : LUMPY_MODE_ASYNC;
+	reclaim_mode_t syncmode = sync ? RECLAIM_MODE_SYNC : RECLAIM_MODE_ASYNC;
 
 	/*
 	 * Initially assume we are entering either lumpy reclaim or
@@ -320,9 +320,9 @@ static void set_lumpy_reclaim_mode(int priority, struct scan_control *sc,
 	 * sync mode or just reclaim order-0 pages later.
 	 */
 	if (COMPACTION_BUILD)
-		sc->lumpy_reclaim_mode = LUMPY_MODE_COMPACTION;
+		sc->reclaim_mode = RECLAIM_MODE_COMPACTION;
 	else
-		sc->lumpy_reclaim_mode = LUMPY_MODE_CONTIGRECLAIM;
+		sc->reclaim_mode = RECLAIM_MODE_LUMPYRECLAIM;
 
 	/*
 	 * Avoid using lumpy reclaim or reclaim/compaction if possible by
@@ -330,16 +330,16 @@ static void set_lumpy_reclaim_mode(int priority, struct scan_control *sc,
 	 * under memory pressure
 	 */
 	if (sc->order > PAGE_ALLOC_COSTLY_ORDER)
-		sc->lumpy_reclaim_mode |= syncmode;
+		sc->reclaim_mode |= syncmode;
 	else if (sc->order && priority < DEF_PRIORITY - 2)
-		sc->lumpy_reclaim_mode |= syncmode;
+		sc->reclaim_mode |= syncmode;
 	else
-		sc->lumpy_reclaim_mode = LUMPY_MODE_SINGLE | LUMPY_MODE_ASYNC;
+		sc->reclaim_mode = RECLAIM_MODE_SINGLE | RECLAIM_MODE_ASYNC;
 }
 
-static void disable_lumpy_reclaim_mode(struct scan_control *sc)
+static void reset_reclaim_mode(struct scan_control *sc)
 {
-	sc->lumpy_reclaim_mode = LUMPY_MODE_SINGLE | LUMPY_MODE_ASYNC;
+	sc->reclaim_mode = RECLAIM_MODE_SINGLE | RECLAIM_MODE_ASYNC;
 }
 
 static inline int is_page_cache_freeable(struct page *page)
@@ -470,7 +470,7 @@ static pageout_t pageout(struct page *page, struct address_space *mapping,
 		 * first attempt to free a range of pages fails.
 		 */
 		if (PageWriteback(page) &&
-		    (sc->lumpy_reclaim_mode & LUMPY_MODE_SYNC))
+		    (sc->reclaim_mode & RECLAIM_MODE_SYNC))
 			wait_on_page_writeback(page);
 
 		if (!PageWriteback(page)) {
@@ -478,7 +478,7 @@ static pageout_t pageout(struct page *page, struct address_space *mapping,
 			ClearPageReclaim(page);
 		}
 		trace_mm_vmscan_writepage(page,
-			trace_reclaim_flags(page, sc->lumpy_reclaim_mode));
+			trace_reclaim_flags(page, sc->reclaim_mode));
 		inc_zone_page_state(page, NR_VMSCAN_WRITE);
 		return PAGE_SUCCESS;
 	}
@@ -663,7 +663,7 @@ static enum page_references page_check_references(struct page *page,
 	referenced_page = TestClearPageReferenced(page);
 
 	/* Lumpy reclaim - ignore references */
-	if (sc->lumpy_reclaim_mode & LUMPY_MODE_CONTIGRECLAIM)
+	if (sc->reclaim_mode & RECLAIM_MODE_LUMPYRECLAIM)
 		return PAGEREF_RECLAIM;
 
 	/*
@@ -780,7 +780,7 @@ static unsigned long shrink_page_list(struct list_head *page_list,
 			 * for any page for which writeback has already
 			 * started.
 			 */
-			if ((sc->lumpy_reclaim_mode & LUMPY_MODE_SYNC) &&
+			if ((sc->reclaim_mode & RECLAIM_MODE_SYNC) &&
 			    may_enter_fs)
 				wait_on_page_writeback(page);
 			else {
@@ -936,7 +936,7 @@ cull_mlocked:
 			try_to_free_swap(page);
 		unlock_page(page);
 		putback_lru_page(page);
-		disable_lumpy_reclaim_mode(sc);
+		reset_reclaim_mode(sc);
 		continue;
 
 activate_locked:
@@ -949,7 +949,7 @@ activate_locked:
 keep_locked:
 		unlock_page(page);
 keep:
-		disable_lumpy_reclaim_mode(sc);
+		reset_reclaim_mode(sc);
 keep_lumpy:
 		list_add(&page->lru, &ret_pages);
 		VM_BUG_ON(PageLRU(page) || PageUnevictable(page));
@@ -1340,7 +1340,7 @@ static inline bool should_reclaim_stall(unsigned long nr_taken,
 		return false;
 
 	/* Only stall on lumpy reclaim */
-	if (sc->lumpy_reclaim_mode & LUMPY_MODE_SINGLE)
+	if (sc->reclaim_mode & RECLAIM_MODE_SINGLE)
 		return false;
 
 	/* If we have relaimed everything on the isolated list, no stall */
@@ -1377,14 +1377,14 @@ shrink_inactive_list(unsigned long nr_to_scan, struct zone *zone,
 	unsigned long nr_file;
 
 
-	set_lumpy_reclaim_mode(priority, sc, false);
+	set_reclaim_mode(priority, sc, false);
 	lru_add_drain();
 	spin_lock_irq(&zone->lru_lock);
 
 	if (scanning_global_lru(sc)) {
 		nr_taken = isolate_pages_global(nr_to_scan,
 			&page_list, &nr_scanned, sc->order,
-			sc->lumpy_reclaim_mode & LUMPY_MODE_CONTIGRECLAIM ?
+			sc->reclaim_mode & RECLAIM_MODE_LUMPYRECLAIM ?
 					ISOLATE_BOTH : ISOLATE_INACTIVE,
 			zone, 0, file);
 		zone->pages_scanned += nr_scanned;
@@ -1397,7 +1397,7 @@ shrink_inactive_list(unsigned long nr_to_scan, struct zone *zone,
 	} else {
 		nr_taken = mem_cgroup_isolate_pages(nr_to_scan,
 			&page_list, &nr_scanned, sc->order,
-			sc->lumpy_reclaim_mode & LUMPY_MODE_CONTIGRECLAIM ?
+			sc->reclaim_mode & RECLAIM_MODE_LUMPYRECLAIM ?
 					ISOLATE_BOTH : ISOLATE_INACTIVE,
 			zone, sc->mem_cgroup,
 			0, file);
@@ -1420,7 +1420,7 @@ shrink_inactive_list(unsigned long nr_to_scan, struct zone *zone,
 
 	/* Check if we should syncronously wait for writeback */
 	if (should_reclaim_stall(nr_taken, nr_reclaimed, priority, sc)) {
-		set_lumpy_reclaim_mode(priority, sc, true);
+		set_reclaim_mode(priority, sc, true);
 		nr_reclaimed += shrink_page_list(&page_list, zone, sc);
 	}
 
@@ -1435,7 +1435,7 @@ shrink_inactive_list(unsigned long nr_to_scan, struct zone *zone,
 		zone_idx(zone),
 		nr_scanned, nr_reclaimed,
 		priority,
-		trace_shrink_flags(file, sc->lumpy_reclaim_mode));
+		trace_shrink_flags(file, sc->reclaim_mode));
 	return nr_reclaimed;
 }
 
@@ -1829,7 +1829,7 @@ static inline bool should_continue_reclaim(struct zone *zone,
 	unsigned long inactive_lru_pages;
 
 	/* If not in reclaim/compaction mode, stop */
-	if (!(sc->lumpy_reclaim_mode & LUMPY_MODE_COMPACTION))
+	if (!(sc->reclaim_mode & RECLAIM_MODE_COMPACTION))
 		return false;
 
 	/*
