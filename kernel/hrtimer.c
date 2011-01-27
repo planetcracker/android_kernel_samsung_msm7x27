@@ -85,13 +85,8 @@ static void hrtimer_get_softirq_time(struct hrtimer_cpu_base *base)
 {
 	ktime_t xtim, tomono;
 	struct timespec xts, tom;
-	unsigned long seq;
 
-	do {
-		seq = read_seqbegin(&xtime_lock);
-		xts = __current_kernel_time();
-		tom = wall_to_monotonic;
-	} while (read_seqretry(&xtime_lock, seq));
+	get_xtime_and_monotonic_offset(&xts, &tom);
 
 	xtim = timespec_to_ktime(xts);
 	tomono = timespec_to_ktime(tom);
@@ -612,18 +607,12 @@ static int hrtimer_reprogram(struct hrtimer *timer,
 static void retrigger_next_event(void *arg)
 {
 	struct hrtimer_cpu_base *base;
-	struct timespec realtime_offset;
-	unsigned long seq;
+	struct timespec realtime_offset, wtm;
 
 	if (!hrtimer_hres_active())
 		return;
 
-	do {
-		seq = read_seqbegin(&xtime_lock);
-		set_normalized_timespec(&realtime_offset,
-					-wall_to_monotonic.tv_sec,
-					-wall_to_monotonic.tv_nsec);
-	} while (read_seqretry(&xtime_lock, seq));
+	get_xtime_and_monotonic_offset(&realtime_offset, &wtm);
 
 	base = &__get_cpu_var(hrtimer_bases);
 
