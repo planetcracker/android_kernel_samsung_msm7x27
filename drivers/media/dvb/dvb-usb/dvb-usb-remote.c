@@ -177,8 +177,16 @@ int dvb_usb_remote_init(struct dvb_usb_device *d)
 	input_dev->phys = d->rc_phys;
 	usb_to_input_id(d->udev, &input_dev->id);
 	input_dev->dev.parent = &d->udev->dev;
+<<<<<<< HEAD
 	input_dev->getkeycode = dvb_usb_getkeycode;
 	input_dev->setkeycode = dvb_usb_setkeycode;
+=======
+	d->input_dev = input_dev;
+	d->rc_dev = NULL;
+
+	input_dev->getkeycode = legacy_dvb_usb_getkeycode;
+	input_dev->setkeycode = legacy_dvb_usb_setkeycode;
+>>>>>>> aebd636... Input: switch completely over to the new versions of get/setkeycode
 
 	/* set the bits for the keys */
 	deb_rc("key map size: %d\n", d->props.rc_key_map_size);
