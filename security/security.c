@@ -210,7 +210,7 @@ int security_syslog(int type, bool from_file)
 	return security_ops->syslog(type, from_file);
 }
 
-int security_settime(struct timespec *ts, struct timezone *tz)
+int security_settime(const struct timespec *ts, const struct timezone *tz)
 {
 	return security_ops->settime(ts, tz);
 }
