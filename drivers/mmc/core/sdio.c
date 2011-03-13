@@ -373,7 +373,7 @@ static int mmc_sdio_init_card(struct mmc_host *host, u32 ocr,
 		card = oldcard;
 		return 0;
 	}
-	mmc_fixup_device(card);
+	mmc_fixup_device(card, NULL);
 
 
 	/*
