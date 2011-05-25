@@ -2930,11 +2930,15 @@ static int kvm_mmu_remove_some_alloc_mmu_pages(struct kvm *kvm)
 	return kvm_mmu_zap_page(kvm, page) + 1;
 }
 
-static int mmu_shrink(struct shrinker *shrink, int nr_to_scan, gfp_t gfp_mask)
+static int mmu_shrink(struct shrinker *shrink, struct shrink_control *sc)
 {
 	struct kvm *kvm;
 	struct kvm *kvm_freed = NULL;
+<<<<<<< HEAD
 	int cache_count = 0;
+=======
+	int nr_to_scan = sc->nr_to_scan;
+>>>>>>> 1495f23... vmscan: change shrinker API by passing shrink_control struct
 
 	spin_lock(&kvm_lock);
 

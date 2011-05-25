@@ -59,6 +59,26 @@ static DEFINE_SPINLOCK(shrink_list_lock);
 
 int i915_gem_do_init(struct drm_device *dev, unsigned long start,
 		     unsigned long end)
+static int i915_gem_inactive_shrink(struct shrinker *shrinker,
+				    struct shrink_control *sc);
+
+/* some bookkeeping */
+static void i915_gem_info_add_obj(struct drm_i915_private *dev_priv,
+				  size_t size)
+{
+	dev_priv->mm.object_count++;
+	dev_priv->mm.object_memory += size;
+}
+
+static void i915_gem_info_remove_obj(struct drm_i915_private *dev_priv,
+				     size_t size)
+{
+	dev_priv->mm.object_count--;
+	dev_priv->mm.object_memory -= size;
+}
+
+static int
+i915_gem_wait_for_error(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 
@@ -4990,12 +5010,28 @@ i915_gpu_is_active(struct drm_device *dev)
 }
 
 static int
+<<<<<<< HEAD
 i915_gem_shrink(struct shrinker *shrink, int nr_to_scan, gfp_t gfp_mask)
 {
 	drm_i915_private_t *dev_priv, *next_dev;
 	struct drm_i915_gem_object *obj_priv, *next_obj;
 	int cnt = 0;
 	int would_deadlock = 1;
+=======
+i915_gem_inactive_shrink(struct shrinker *shrinker, struct shrink_control *sc)
+{
+	struct drm_i915_private *dev_priv =
+		container_of(shrinker,
+			     struct drm_i915_private,
+			     mm.inactive_shrinker);
+	struct drm_device *dev = dev_priv->dev;
+	struct drm_i915_gem_object *obj, *next;
+	int nr_to_scan = sc->nr_to_scan;
+	int cnt;
+
+	if (!mutex_trylock(&dev->struct_mutex))
+		return 0;
+>>>>>>> 1495f23... vmscan: change shrinker API by passing shrink_control struct
 
 	/* "fast-path" to count number of available objects */
 	if (nr_to_scan == 0) {

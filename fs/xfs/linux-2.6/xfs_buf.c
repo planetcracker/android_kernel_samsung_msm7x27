@@ -1466,6 +1466,24 @@ xfs_alloc_bufhash(
 	int			external)
 {
 	unsigned int		i;
+int
+xfs_buftarg_shrink(
+	struct shrinker		*shrink,
+	struct shrink_control	*sc)
+{
+	struct xfs_buftarg	*btp = container_of(shrink,
+					struct xfs_buftarg, bt_shrinker);
+	struct xfs_buf		*bp;
+	int nr_to_scan = sc->nr_to_scan;
+	LIST_HEAD(dispose);
+
+	if (!nr_to_scan)
+		return btp->bt_lru_nr;
+
+	spin_lock(&btp->bt_lru_lock);
+	while (!list_empty(&btp->bt_lru)) {
+		if (nr_to_scan-- <= 0)
+			break;
 
 	btp->bt_hashshift = external ? 3 : 8;	/* 8 or 256 buckets */
 	btp->bt_hashmask = (1 << btp->bt_hashshift) - 1;
