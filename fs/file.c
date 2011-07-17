@@ -432,7 +432,7 @@ struct files_struct init_files = {
 		.open_fds	= (fd_set *)&init_files.open_fds_init,
 		.rcu		= RCU_HEAD_INIT,
 	},
-	.file_lock	= __SPIN_LOCK_UNLOCKED(init_task.file_lock),
+	.file_lock	= __SPIN_LOCK_UNLOCKED(init_files.file_lock),
 };
 
 /*
