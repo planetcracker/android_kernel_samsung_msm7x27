@@ -156,33 +156,15 @@ static inline int is_partial_io(struct bio_vec *bvec)
         return bvec->bv_len != PAGE_SIZE;
 }
 
-static void zram_set_disksize(struct zram *zram, size_t totalram_bytes)
+static u64 zram_default_disksize_bytes(void)
 {
-	if (!zram->disksize) {
-		pr_info(
-		"disk size not provided. You can use disksize_kb module "
-		"param to specify size.\nUsing default: (%u%% of RAM).\n",
-		default_disksize_perc_ram
-		);
-		zram->disksize = default_disksize_perc_ram *
-					(totalram_bytes / 100);
-	}
-
-	if (zram->disksize > 2 * (totalram_bytes)) {
-		pr_info(
-		"There is little point creating a zram of greater than "
-		"twice the size of memory since we expect a 2:1 compression "
-		"ratio. Note that zram uses about 0.1%% of the size of "
-		"the disk when not in use so a huge zram is "
-		"wasteful.\n"
-		"\tMemory Size: %zu kB\n"
-		"\tSize you selected: %llu kB\n"
-		"Continuing anyway ...\n",
-		totalram_bytes >> 10, zram->disksize
-		);
-	}
-
-	zram->disksize &= PAGE_MASK;
+	return ((totalram_pages << PAGE_SHIFT) *
+		default_disksize_perc_ram / 100) & PAGE_MASK;
+}
+static void zram_set_disksize(struct zram *zram, u64 size_bytes)
+{
+	zram->disksize = size_bytes;
+	set_capacity(zram->disk, size_bytes >> SECTOR_SHIFT);
 }
 
 static void zram_free_page(struct zram *zram, size_t index)
@@ -278,7 +260,6 @@ static int zram_read(struct zram *zram, struct bio *bio)
 {
 
 	int i;
-	int offset;
 	u32 index;
 	struct bio_vec *bvec;
 
@@ -296,7 +277,7 @@ static int zram_read(struct zram *zram, struct bio *bio)
 		size_t clen;
 		struct page *page;
 		struct zobj_header *zheader;
-		unsigned char *user_mem, *cmem, *uncmem;
+		unsigned char *user_mem, *cmem;
 
 		page = bvec->bv_page;
 
@@ -321,18 +302,8 @@ static int zram_read(struct zram *zram, struct bio *bio)
 			index++;
 			continue;
 		}
-		if (is_partial_io(bvec)) {
-			/* Use  a temporary buffer to decompress the page */
-			uncmem = kmalloc(PAGE_SIZE, GFP_KERNEL);
-			if (!uncmem) {
-				pr_info("Error allocating temp memory!\n");
-				return -ENOMEM;
-			}
-		}
 
 		user_mem = kmap_atomic(page, KM_USER0);
-		if (!is_partial_io(bvec))
-			uncmem = user_mem;
 		clen = PAGE_SIZE;
 
 		cmem = kmap_atomic(zram->table[index].page, KM_USER1) +
@@ -341,13 +312,7 @@ static int zram_read(struct zram *zram, struct bio *bio)
 		ret = DECOMPRESS(
 			cmem + sizeof(*zheader),
 			xv_get_object_size(cmem) - sizeof(*zheader),
-			uncmem, &clen);
-
-		if (is_partial_io(bvec)) {
-		memcpy(user_mem + bvec->bv_offset, uncmem + offset,
-		       bvec->bv_len);
-		kfree(uncmem);
-		}
+			user_mem, &clen);
 
 
 		kunmap_atomic(user_mem, KM_USER0);
@@ -394,7 +359,7 @@ static int zram_write(struct zram *zram, struct bio *bio)
 		size_t clen;
 		struct zobj_header *zheader;
 		struct page *page, *page_store;
-		unsigned char *user_mem, *cmem, *uncmem, *src;
+		unsigned char *user_mem, *cmem, *src;
 
 		page = bvec->bv_page;
 		src = zram->compress_buffer;
@@ -419,7 +384,7 @@ static int zram_write(struct zram *zram, struct bio *bio)
 			continue;
 		}
 
-		COMPRESS(uncmem, PAGE_SIZE, src, &clen,
+		COMPRESS(user_mem, PAGE_SIZE, src, &clen,
 			zram->compress_workmem);
 		ret = 0;
 
@@ -612,7 +577,8 @@ int zram_init_device(struct zram *zram)
 		return 0;
 	}
 
-	zram_set_disksize(zram, totalram_pages << PAGE_SHIFT);
+	if (!zram->disksize)
+		zram_set_disksize(zram, zram_default_disksize_bytes());
 
 	zram->compress_workmem = kzalloc(WMSIZE, GFP_KERNEL);
 	if (!zram->compress_workmem) {
@@ -639,7 +605,6 @@ int zram_init_device(struct zram *zram)
 	}
 	memset(zram->table, 0, num_pages * sizeof(*zram->table));
 
-	set_capacity(zram->disk, zram->disksize >> SECTOR_SHIFT);
 
 	/* zram devices sort of resembles non-rotational disks */
 	queue_flag_set_unlocked(QUEUE_FLAG_NONROT, zram->disk->queue);
@@ -720,7 +685,7 @@ static int create_device(struct zram *zram, int device_id)
 	snprintf(zram->disk->disk_name, 16, "zram%d", device_id);
 
 	/* Actual capacity set using syfs (/sys/block/zram<id>/disksize */
-	set_capacity(zram->disk, 0);
+	zram_set_disksize(zram, 0);
 
 	/*
 	 * To ensure that we always get PAGE_SIZE aligned
