@@ -469,7 +469,7 @@ static void *row_init_queue(struct request_queue *q)
 		rdata->read_idle.idle_time = 1;
 	rdata->read_idle.freq = ROW_READ_FREQ_MSEC;
 	rdata->read_idle.idle_workqueue = __create_workqueue("row_idle_work",
-					    0, 0, 0);
+					    1, 0, 1);
 	if (!rdata->read_idle.idle_workqueue)
 		panic("Failed to create idle workqueue\n");
 	INIT_DELAYED_WORK(&rdata->read_idle.idle_work, kick_queue);
