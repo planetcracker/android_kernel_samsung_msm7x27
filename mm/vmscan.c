@@ -1191,11 +1191,17 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
 			if (__isolate_lru_page(cursor_page, mode, file) == 0) {
 				list_move(&cursor_page->lru, dst);
 				mem_cgroup_del_lru(cursor_page);
-				nr_taken += hpage_nr_pages(cursor_page);
-				nr_lumpy_taken++;
+				unsigned int isolated_pages;
+
+				mem_cgroup_lru_del(cursor_page);
+				list_move(&cursor_page->lru, dst);
+				isolated_pages = hpage_nr_pages(cursor_page);
+				nr_taken += isolated_pages;
+				nr_lumpy_taken += isolated_pages;
 				if (PageDirty(cursor_page))
-					nr_lumpy_dirty++;
+					nr_lumpy_dirty += isolated_pages;
 				scan++;
+				pfn += isolated_pages - 1;
 			} else {
 				/*
 				 * Check if the page is freed already.
