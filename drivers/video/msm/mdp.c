@@ -1034,6 +1034,15 @@ void mdp_pipe_kickoff(uint32 term, struct msm_fb_data_type *mfd)
 #endif
 }
 
+void set_cont_splashScreen_status(int status)
+{
+	if (!status)
+		mdp_pipe_ctrl(MDP_CMD_BLOCK, MDP_BLOCK_POWER_ON, FALSE);
+	else
+		mdp_pipe_ctrl(MDP_CMD_BLOCK, MDP_BLOCK_POWER_OFF, FALSE);
+
+}
+
 static int mdp_clk_rate;
 static struct platform_device *pdev_list[MSM_FB_MAX_DEV_LIST];
 static int pdev_list_cnt;
@@ -1832,16 +1841,13 @@ static int mdp_probe(struct platform_device *pdev)
 	mfd->mdp_rev = mdp_rev;
 
 	if (mdp_pdata) {
-		if (mdp_pdata->cont_splash_enabled) {
+		if (mdp_pdata->cont_splash_enabled)
 			mfd->cont_splash_done = 0;
-			if (!contSplash_update_done) {
-				mdp_pipe_ctrl(MDP_CMD_BLOCK,
-					MDP_BLOCK_POWER_ON, FALSE);
-				contSplash_update_done = 1;
-			}
-		} else
+		else
 			mfd->cont_splash_done = 1;
 	}
+
+	set_cont_splashScreen_status(mfd->cont_splash_done);
 
 	mfd->ov0_wb_buf = MDP_ALLOC(sizeof(struct mdp_buf_type));
 	mfd->ov1_wb_buf = MDP_ALLOC(sizeof(struct mdp_buf_type));

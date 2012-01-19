@@ -1647,15 +1647,6 @@ static int msm_fb_pan_display(struct fb_var_screeninfo *var,
 	struct msm_fb_data_type *mfd = (struct msm_fb_data_type *)info->par;
 	struct msm_fb_panel_data *pdata;
 
-	/*
-	 * If framebuffer is 1 or 2, io pen display is not allowed.
-	 */
-	if (info->node == 1 || info->node == 2) {
-		pr_err("%s: no pan display for fb%d!",
-		       __func__, info->node);
-		return -EPERM;
-	}
-
 	if (info->node != 0 || mfd->cont_splash_done)	/* primary */
 		if ((!mfd->op_enable) || (!mfd->panel_power_on))
 			return -EPERM;
@@ -1710,7 +1701,7 @@ static int msm_fb_pan_display(struct fb_var_screeninfo *var,
 
 	down(&msm_fb_pan_sem);
 
-	if (info->node == 0) { /* primary */
+	if (info->node == 0 && !(mfd->cont_splash_done)) { /* primary */
 		mdp_set_dma_pan_info(info, NULL, TRUE);
 		if (msm_fb_blank_sub(FB_BLANK_UNBLANK, info, mfd->op_enable)) {
 			pr_err("%s: can't turn on display!\n", __func__);
@@ -2872,7 +2863,7 @@ static int msmfb_overlay_play(struct fb_info *info, unsigned long *argp)
 	add_timer(&mfd->msmfb_no_update_notify_timer);
 	mutex_unlock(&msm_fb_notify_update_sem);
 
-	if (info->node == 0) { /* primary */
+	if (info->node == 0 && !(mfd->cont_splash_done)) { /* primary */
 		mdp_set_dma_pan_info(info, NULL, TRUE);
 		if (msm_fb_blank_sub(FB_BLANK_UNBLANK, info, mfd->op_enable)) {
 			pr_err("%s: can't turn on display!\n", __func__);
