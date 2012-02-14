@@ -183,8 +183,7 @@ char *mipi_dsi_buf_init(struct dsi_buf *dp);
 void mipi_dsi_init(void);
 int mipi_dsi_buf_alloc(struct dsi_buf *, int size);
 int mipi_dsi_cmd_dma_add(struct dsi_buf *dp, struct dsi_cmd_desc *cm);
-int mipi_dsi_cmds_tx(struct msm_fb_data_type *mfd,
-		struct dsi_buf *dp, struct dsi_cmd_desc *cmds, int cnt);
+int mipi_dsi_cmds_tx(struct dsi_buf *dp, struct dsi_cmd_desc *cmds, int cnt);
 
 int mipi_dsi_cmd_dma_tx(struct dsi_buf *dp);
 int mipi_dsi_cmd_reg_tx(uint32 data);
@@ -196,11 +195,26 @@ void mipi_dsi_host_init(struct mipi_panel_info *pinfo);
 void mipi_dsi_op_mode_config(int mode);
 void mipi_dsi_cmd_mode_ctrl(int enable);
 void mdp4_dsi_cmd_trigger(void);
-void mipi_dsi_cmd_mdp_sw_trigger(void);
+void mipi_dsi_cmd_mdp_start(void);
+int mipi_dsi_ctrl_lock(int mdp);
+int mipi_dsi_ctrl_lock_query(void);
 void mipi_dsi_cmd_bta_sw_trigger(void);
 void mipi_dsi_ack_err_status(void);
 void mipi_dsi_set_tear_on(struct msm_fb_data_type *mfd);
 void mipi_dsi_set_tear_off(struct msm_fb_data_type *mfd);
+void mipi_dsi_set_backlight(struct msm_fb_data_type *mfd, int level);
+void mipi_dsi_cmd_backlight_tx(int level);
+void mipi_dsi_clk_enable(void);
+void mipi_dsi_clk_disable(void);
+void mipi_dsi_pre_kickoff_action(void);
+void mipi_dsi_post_kickoff_action(void);
+void mipi_dsi_pre_kickoff_add(struct dsi_kickoff_action *act);
+void mipi_dsi_post_kickoff_add(struct dsi_kickoff_action *act);
+void mipi_dsi_pre_kickoff_del(struct dsi_kickoff_action *act);
+void mipi_dsi_post_kickoff_del(struct dsi_kickoff_action *act);
+void mipi_dsi_controller_cfg(int enable);
+void mipi_dsi_sw_reset(void);
+void mipi_dsi_mdp_busy_wait(struct msm_fb_data_type *mfd);
 
 irqreturn_t mipi_dsi_isr(int irq, void *ptr);
 
@@ -215,6 +229,7 @@ void mipi_dsi_clk_deinit(struct device *dev);
 void mipi_dsi_ahb_ctrl(u32 enable);
 void mipi_dsi_turn_on_clks(void);
 void mipi_dsi_turn_off_clks(void);
+void mipi_dsi_clk_cfg(int on);
 
 #ifdef CONFIG_FB_MSM_MDP303
 void update_lane_config(struct msm_panel_info *pinfo);

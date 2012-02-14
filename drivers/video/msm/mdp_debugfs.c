@@ -320,7 +320,44 @@ static ssize_t mdp_stat_read(
 
 	bp += len;
 	dlen -= len;
-	spin_unlock_irqrestore(&mdp_spin_lock, flag);
+	len = snprintf(bp, dlen, "histogram: %08lu\t",
+					mdp4_stat.intr_histogram);
+	bp += len;
+	dlen -= len;
+	len = snprintf(bp, dlen, "read_ptr: %08lu\n\n",
+					mdp4_stat.intr_rdptr);
+	bp += len;
+	dlen -= len;
+	len = snprintf(bp, dlen, "dsi:\n");
+	bp += len;
+	dlen -= len;
+	len = snprintf(bp, dlen, "int_total: %08lu\tmdp_start: %08lu\n",
+			mdp4_stat.intr_dsi, mdp4_stat.dsi_mdp_start);
+	bp += len;
+	dlen -= len;
+	len = snprintf(bp, dlen, "int_cmd: %08lu\t",
+					mdp4_stat.intr_dsi_cmd);
+
+	bp += len;
+	dlen -= len;
+	len = snprintf(bp, dlen, "int_mdp: %08lu\t",
+					mdp4_stat.intr_dsi_mdp);
+
+	bp += len;
+	dlen -= len;
+
+	len = snprintf(bp, dlen, "int_err: %08lu\n",
+					mdp4_stat.intr_dsi_err);
+
+	bp += len;
+	dlen -= len;
+	len = snprintf(bp, dlen, "clk_on : %08lu\t",
+					mdp4_stat.dsi_clk_on);
+
+	bp += len;
+	dlen -= len;
+	len = snprintf(bp, dlen, "clk_off: %08lu\n\n",
+					mdp4_stat.dsi_clk_off);
 
 	len = snprintf(bp, dlen, "kickoff_mddi:      %08lu\n",
 					mdp4_stat.kickoff_mddi);
@@ -355,11 +392,19 @@ static ssize_t mdp_stat_read(
 					mdp4_stat.overlay_unset[0]);
 	bp += len;
 	dlen -= len;
-	len = snprintf(bp, dlen, "overlay0_play:  %08lu\n",
+	len = snprintf(bp, dlen, "play:  %08lu\t",
 					mdp4_stat.overlay_play[0]);
 	bp += len;
 	dlen -= len;
-	len = snprintf(bp, dlen, "overlay1_set:   %08lu\n",
+	len = snprintf(bp, dlen, "commit:  %08lu\n",
+					mdp4_stat.overlay_commit[0]);
+	bp += len;
+	dlen -= len;
+
+	len = snprintf(bp, dlen, "overlay1_play:\n");
+	bp += len;
+	dlen -= len;
+	len = snprintf(bp, dlen, "set:   %08lu\t",
 					mdp4_stat.overlay_set[1]);
 	bp += len;
 	dlen -= len;
@@ -367,21 +412,56 @@ static ssize_t mdp_stat_read(
 					mdp4_stat.overlay_unset[1]);
 	bp += len;
 	dlen -= len;
-	len = snprintf(bp, dlen, "overlay1_play:  %08lu\n\n",
+	len = snprintf(bp, dlen, "play:  %08lu\t",
 					mdp4_stat.overlay_play[1]);
 
 	bp += len;
 	dlen -= len;
-	len = snprintf(bp, dlen, "pipe_rgb1:  %08lu\n", mdp4_stat.pipe[0]);
+	len = snprintf(bp, dlen, "commit:  %08lu\n\n",
+					mdp4_stat.overlay_commit[1]);
 	bp += len;
 	dlen -= len;
-	len = snprintf(bp, dlen, "pipe_rgb2:  %08lu\n", mdp4_stat.pipe[1]);
+
+	len = snprintf(bp, dlen, "frame_push:\n");
 	bp += len;
 	dlen -= len;
-	len = snprintf(bp, dlen, "pipe_vg1:   %08lu\n", mdp4_stat.pipe[2]);
+	len = snprintf(bp, dlen, "vg1 :   %08lu\t", mdp4_stat.pipe[0]);
 	bp += len;
 	dlen -= len;
-	len = snprintf(bp, dlen, "pipe_vg2:   %08lu\n\n", mdp4_stat.pipe[3]);
+	len = snprintf(bp, dlen, "vg2 :   %08lu\t", mdp4_stat.pipe[1]);
+	bp += len;
+	dlen -= len;
+	len = snprintf(bp, dlen, "vg3 :   %08lu\n", mdp4_stat.pipe[5]);
+	bp += len;
+	dlen -= len;
+	len = snprintf(bp, dlen, "rgb1:   %08lu\t", mdp4_stat.pipe[2]);
+	bp += len;
+	dlen -= len;
+	len = snprintf(bp, dlen, "rgb2:   %08lu\t", mdp4_stat.pipe[3]);
+	bp += len;
+	dlen -= len;
+	len = snprintf(bp, dlen, "rgb3:   %08lu\n\n", mdp4_stat.pipe[4]);
+	bp += len;
+	dlen -= len;
+	len = snprintf(bp, dlen, "wait4vsync: ");
+	bp += len;
+	dlen -= len;
+	len = snprintf(bp, dlen, "mixer0 : %08lu\t", mdp4_stat.wait4vsync0);
+	bp += len;
+	dlen -= len;
+	len = snprintf(bp, dlen, "mixer1: %08lu\n\n", mdp4_stat.wait4vsync1);
+	bp += len;
+	dlen -= len;
+	len = snprintf(bp, dlen, "iommu: ");
+	bp += len;
+	dlen -= len;
+	len = snprintf(bp, dlen, "map : %08lu\t", mdp4_stat.iommu_map);
+	bp += len;
+	dlen -= len;
+	len = snprintf(bp, dlen, "unmap: %08lu\t", mdp4_stat.iommu_unmap);
+	bp += len;
+	dlen -= len;
+	len = snprintf(bp, dlen, "drop: %08lu\n\n", mdp4_stat.iommu_drop);
 	bp += len;
 	dlen -= len;
 	len = snprintf(bp, dlen, "err_mixer:  %08lu\n", mdp4_stat.err_mixer);
