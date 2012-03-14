@@ -34,6 +34,13 @@
 #include <linux/file.h>
 #include <linux/major.h>
 #include <linux/regulator/consumer.h>
+#include <linux/ion.h>
+#ifdef CONFIG_MSM_BUS_SCALING
+#include <mach/msm_bus.h>
+#include <mach/msm_bus_board.h>
+#endif
+#include <mach/msm_subsystem_map.h>
+#include <mach/iommu_domains.h>
 
 #define DRIVER_NAME "msm_rotator"
 
@@ -131,6 +138,33 @@ enum {
 	CLK_DIS,
 	CLK_SUSPEND,
 };
+
+int msm_rotator_iommu_map_buf(int mem_id, unsigned char src,
+	unsigned long *start, unsigned long *len,
+	struct ion_handle **pihdl)
+{
+	if (!msm_rotator_dev->client)
+		return -EINVAL;
+
+	*pihdl = ion_import_fd(msm_rotator_dev->client, mem_id);
+	if (IS_ERR_OR_NULL(*pihdl)) {
+		pr_err("ion_import_fd() failed\n");
+		return PTR_ERR(*pihdl);
+	}
+	pr_debug("%s(): ion_hdl %p, ion_buf %p\n", __func__, *pihdl,
+		ion_share(msm_rotator_dev->client, *pihdl));
+
+	if (ion_map_iommu(msm_rotator_dev->client,
+		*pihdl,	ROTATOR_DOMAIN, GEN_POOL,
+		SZ_4K, 0, start, len, 0, ION_IOMMU_UNMAP_DELAYED)) {
+		pr_err("ion_map_iommu() failed\n");
+		return -EINVAL;
+	}
+
+	pr_debug("%s(): mem_id %d, start 0x%lx, len 0x%lx\n",
+		__func__, mem_id, *start, *len);
+	return 0;
+}
 
 int msm_rotator_imem_allocate(int requestor)
 {
@@ -673,8 +707,9 @@ static int msm_rotator_rgb_types(struct msm_rotator_img_info *info,
 	return 0;
 }
 
-static int get_img(int memory_id, unsigned long *start, unsigned long *len,
-		struct file **pp_file)
+static int get_img(struct msmfb_data *fbd, unsigned char src,
+	unsigned long *start, unsigned long *len, struct file **p_file,
+	int *p_need, struct ion_handle **p_ihdl)
 {
 	int put_needed, ret = 0, fb_num;
 	struct file *file;
@@ -682,6 +717,40 @@ static int get_img(int memory_id, unsigned long *start, unsigned long *len,
 	unsigned long vstart;
 #endif
 
+	*p_need = 0;
+
+#ifdef CONFIG_FB
+	if (fbd->flags & MDP_MEMORY_ID_TYPE_FB) {
+		file = fget_light(fbd->memory_id, &put_needed);
+		if (file == NULL) {
+			pr_err("fget_light returned NULL\n");
+			return -EINVAL;
+		}
+
+		if (MAJOR(file->f_dentry->d_inode->i_rdev) == FB_MAJOR) {
+			fb_num = MINOR(file->f_dentry->d_inode->i_rdev);
+			if (get_fb_phys_info(start, len, fb_num,
+				ROTATOR_SUBSYSTEM_ID)) {
+				pr_err("get_fb_phys_info() failed\n");
+				ret = -1;
+			} else {
+				*p_file = file;
+				*p_need = put_needed;
+			}
+		} else {
+			pr_err("invalid FB_MAJOR failed\n");
+			ret = -1;
+		}
+		if (ret)
+			fput_light(file, put_needed);
+		return ret;
+	}
+#endif
+
+#ifdef CONFIG_MSM_MULTIMEDIA_USE_ION
+	return msm_rotator_iommu_map_buf(fbd->memory_id, src, start,
+		len, p_ihdl);
+#endif
 #ifdef CONFIG_ANDROID_PMEM
 	if (!get_pmem_file(memory_id, start, &vstart, len, pp_file))
 		return 0;
@@ -701,6 +770,23 @@ static int get_img(int memory_id, unsigned long *start, unsigned long *len,
 	if (ret)
 		fput_light(file, put_needed);
 	return ret;
+}
+
+static void put_img(struct file *p_file, struct ion_handle *p_ihdl)
+{
+#ifdef CONFIG_ANDROID_PMEM
+	if (p_file != NULL)
+		put_pmem_file(p_file);
+#endif
+#ifdef CONFIG_MSM_MULTIMEDIA_USE_ION
+	if (!IS_ERR_OR_NULL(p_ihdl)) {
+		pr_debug("%s(): p_ihdl %p\n", __func__, p_ihdl);
+		ion_unmap_iommu(msm_rotator_dev->client,
+			p_ihdl, ROTATOR_DOMAIN, GEN_POOL);
+
+		ion_free(msm_rotator_dev->client, p_ihdl);
+	}
+#endif
 }
 
 static int msm_rotator_do_rotate(unsigned long arg)
@@ -759,6 +845,132 @@ static int msm_rotator_do_rotate(unsigned long arg)
 		rc = -EINVAL;
 		goto do_rotate_unlock_mutex;
 	}
+
+	img_info = msm_rotator_dev->img_info[s];
+	if (msm_rotator_get_plane_sizes(img_info->src.format,
+					img_info->src.width,
+					img_info->src.height,
+					&src_planes)) {
+		pr_err("%s: invalid src format\n", __func__);
+		rc = -EINVAL;
+		goto do_rotate_unlock_mutex;
+	}
+	if (msm_rotator_get_plane_sizes(img_info->dst.format,
+					img_info->dst.width,
+					img_info->dst.height,
+					&dst_planes)) {
+		pr_err("%s: invalid dst format\n", __func__);
+		rc = -EINVAL;
+		goto do_rotate_unlock_mutex;
+	}
+
+	rc = get_img(&info.src, 1, (unsigned long *)&in_paddr,
+			(unsigned long *)&src_len, &srcp0_file, &ps0_need,
+			&srcp0_ihdl);
+	if (rc) {
+		pr_err("%s: in get_img() failed id=0x%08x\n",
+			DRIVER_NAME, info.src.memory_id);
+		goto do_rotate_unlock_mutex;
+	}
+
+	rc = get_img(&info.dst, 0, (unsigned long *)&out_paddr,
+			(unsigned long *)&dst_len, &dstp0_file, &p_need,
+			&dstp0_ihdl);
+	if (rc) {
+		pr_err("%s: out get_img() failed id=0x%08x\n",
+		       DRIVER_NAME, info.dst.memory_id);
+		goto do_rotate_unlock_mutex;
+	}
+
+	format = msm_rotator_dev->img_info[s]->src.format;
+	if (((info.version_key & VERSION_KEY_MASK) == 0xA5B4C300) &&
+			((info.version_key & ~VERSION_KEY_MASK) > 0) &&
+			(src_planes.num_planes == 2)) {
+		if (checkoffset(info.src.offset,
+				src_planes.plane_size[0],
+				src_len)) {
+			pr_err("%s: invalid src buffer (len=%lu offset=%x)\n",
+			       __func__, src_len, info.src.offset);
+			rc = -ERANGE;
+			goto do_rotate_unlock_mutex;
+		}
+		if (checkoffset(info.dst.offset,
+				dst_planes.plane_size[0],
+				dst_len)) {
+			pr_err("%s: invalid dst buffer (len=%lu offset=%x)\n",
+			       __func__, dst_len, info.dst.offset);
+			rc = -ERANGE;
+			goto do_rotate_unlock_mutex;
+		}
+
+		rc = get_img(&info.src_chroma, 1,
+				(unsigned long *)&in_chroma_paddr,
+				(unsigned long *)&src_len, &srcp1_file, &p_need,
+				&srcp1_ihdl);
+		if (rc) {
+			pr_err("%s: in chroma get_img() failed id=0x%08x\n",
+				DRIVER_NAME, info.src_chroma.memory_id);
+			goto do_rotate_unlock_mutex;
+		}
+
+		rc = get_img(&info.dst_chroma, 0,
+				(unsigned long *)&out_chroma_paddr,
+				(unsigned long *)&dst_len, &dstp1_file, &p_need,
+				&dstp1_ihdl);
+		if (rc) {
+			pr_err("%s: out chroma get_img() failed id=0x%08x\n",
+				DRIVER_NAME, info.dst_chroma.memory_id);
+			goto do_rotate_unlock_mutex;
+		}
+
+		if (checkoffset(info.src_chroma.offset,
+				src_planes.plane_size[1],
+				src_len)) {
+			pr_err("%s: invalid chr src buf len=%lu offset=%x\n",
+			       __func__, src_len, info.src_chroma.offset);
+			rc = -ERANGE;
+			goto do_rotate_unlock_mutex;
+		}
+
+		if (checkoffset(info.dst_chroma.offset,
+				src_planes.plane_size[1],
+				dst_len)) {
+			pr_err("%s: invalid chr dst buf len=%lu offset=%x\n",
+			       __func__, dst_len, info.dst_chroma.offset);
+			rc = -ERANGE;
+			goto do_rotate_unlock_mutex;
+		}
+
+		in_chroma_paddr += info.src_chroma.offset;
+		out_chroma_paddr += info.dst_chroma.offset;
+	} else {
+		if (checkoffset(info.src.offset,
+				src_planes.total_size,
+				src_len)) {
+			pr_err("%s: invalid src buffer (len=%lu offset=%x)\n",
+			       __func__, src_len, info.src.offset);
+			rc = -ERANGE;
+			goto do_rotate_unlock_mutex;
+		}
+		if (checkoffset(info.dst.offset,
+				dst_planes.total_size,
+				dst_len)) {
+			pr_err("%s: invalid dst buffer (len=%lu offset=%x)\n",
+			       __func__, dst_len, info.dst.offset);
+			rc = -ERANGE;
+			goto do_rotate_unlock_mutex;
+		}
+	}
+
+	in_paddr += info.src.offset;
+	out_paddr += info.dst.offset;
+
+	if (!in_chroma_paddr && src_planes.num_planes >= 2)
+		in_chroma_paddr = in_paddr + src_planes.plane_size[0];
+	if (!out_chroma_paddr && dst_planes.num_planes >= 2)
+		out_chroma_paddr = out_paddr + dst_planes.plane_size[0];
+	if (src_planes.num_planes >= 3)
+		in_chroma2_paddr = in_chroma_paddr + src_planes.plane_size[1];
 
 	cancel_delayed_work(&msm_rotator_dev->rot_clk_work);
 	if (msm_rotator_dev->rot_clk_state != CLK_EN) {
@@ -1169,11 +1381,10 @@ static int __devinit msm_rotator_probe(struct platform_device *pdev)
 	if (msm_rotator_dev->imem_clk)
 		clk_disable(msm_rotator_dev->imem_clk);
 #endif
-	if (ver != pdata->hardware_version_number) {
-		printk(KERN_ALERT "%s: invalid HW version\n", DRIVER_NAME);
-		rc = -ENODEV;
-		goto error_get_resource;
-	}
+	if (ver != pdata->hardware_version_number)
+		pr_info("%s: invalid HW version ver 0x%x\n",
+			DRIVER_NAME, ver);
+
 	msm_rotator_dev->irq = platform_get_irq(pdev, 0);
 	if (msm_rotator_dev->irq < 0) {
 		printk(KERN_ALERT "%s: could not get IORESOURCE_IRQ\n",

@@ -322,8 +322,16 @@ void mdp4_dsi_cmd_overlay_kickoff(struct msm_fb_data_type *mfd,
 	mfd->dma->busy = TRUE;
 	/* start OVERLAY pipe */
 	mdp_pipe_kickoff(MDP_OVERLAY0_TERM, mfd);
-	/* trigger dsi cmd engine */
-	mipi_dsi_cmd_mdp_sw_trigger();
+	mdp4_stat.kickoff_ov0++;
+}
+
+void mdp_dsi_cmd_overlay_suspend(void)
+{
+	/* dis-engage rgb0 from mixer0 */
+	if (dsi_pipe) {
+		mdp4_mixer_stage_down(dsi_pipe);
+		mdp4_iommu_unmap(dsi_pipe);
+	}
 }
 
 void mdp4_dsi_cmd_overlay(struct msm_fb_data_type *mfd)
@@ -335,9 +343,7 @@ void mdp4_dsi_cmd_overlay(struct msm_fb_data_type *mfd)
 		mdp4_overlay_update_dsi_cmd(mfd);
 
 		mdp4_dsi_cmd_kickoff_ui(mfd, dsi_pipe);
-
-		mdp4_stat.kickoff_dsi++;
-
+		mdp4_iommu_unmap(dsi_pipe);
 	/* signal if pan function is waiting for the update completion */
 		if (mfd->pan_waiting) {
 			mfd->pan_waiting = FALSE;

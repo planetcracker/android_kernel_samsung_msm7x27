@@ -1350,8 +1350,8 @@ static int msm_fb_register(struct msm_fb_data_type *mfd)
 			fbi->fix.smem_start, mfd->map_buffer->iova[0],
 			mfd->map_buffer->iova[1]);
 	}
-	if (mfd->index == 0)
-		memset(fbi->screen_base, 0x0, fix->smem_len);
+        if (mfd->index == 0)
+	memset(fbi->screen_base, 0x0, fix->smem_len);
 
 	mfd->op_enable = TRUE;
 	mfd->panel_power_on = FALSE;

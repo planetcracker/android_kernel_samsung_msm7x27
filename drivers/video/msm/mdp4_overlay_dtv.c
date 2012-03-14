@@ -278,6 +278,18 @@ int mdp4_dtv_off(struct platform_device *pdev)
 	/* dis-engage rgb2 from mixer1 */
 	if (dtv_pipe)
 		mdp4_mixer_stage_down(dtv_pipe);
+		/*
+		 * wait4vsync to make sure pipes are
+		 * dis-engaged from mixer1
+		 * before turn off timing generator
+		 */
+		mdp4_overlay_dtv_wait4vsync();
+		mdp4_dtv_stop(mfd);
+		mdp4_overlay_pipe_free(dtv_pipe);
+		mdp4_iommu_unmap(dtv_pipe);
+		dtv_pipe = NULL;
+	}
+	mdp4_overlay_panel_mode_unset(MDP4_MIXER1, MDP4_PANEL_DTV);
 
 	return ret;
 }
@@ -587,7 +599,16 @@ void mdp4_dtv_overlay(struct msm_fb_data_type *mfd)
 	wait_for_completion_killable(&dtv_pipe->comp);
 	mdp_disable_irq(MDP_OVERLAY1_TERM);
 
-	mdp4_stat.kickoff_dtv++;
-	mdp4_overlay_resource_release();
+	mutex_lock(&mfd->dma->ov_mutex);
+	pipe = dtv_pipe;
+	if (pipe->pipe_type == OVERLAY_TYPE_RGB) {
+		pipe->srcp0_addr = (uint32) mfd->ibuf.buf;
+		mdp4_overlay_rgb_setup(pipe);
+	}
+	mdp4_mixer_stage_up(pipe);
+	mdp4_overlay_reg_flush(pipe, 0);
+	mdp4_overlay_dtv_start();
+	mdp4_overlay_dtv_ov_done_push(mfd, pipe);
+	mdp4_iommu_unmap(pipe);
 	mutex_unlock(&mfd->dma->ov_mutex);
 }
