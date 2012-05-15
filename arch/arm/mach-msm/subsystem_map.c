@@ -34,6 +34,17 @@ static struct rb_root buffer_root;
 static struct rb_root phys_root;
 DEFINE_MUTEX(msm_buffer_mutex);
 
+static unsigned long subsystem_to_domain_tbl[] = {
+	VIDEO_DOMAIN,
+	VIDEO_DOMAIN,
+	CAMERA_DOMAIN,
+	DISPLAY_READ_DOMAIN,
+	DISPLAY_WRITE_DOMAIN,
+	ROTATOR_SRC_DOMAIN,
+	ROTATOR_DST_DOMAIN,
+	0xFFFFFFFF
+};
+
 static struct msm_buffer_node *find_buffer(void *key)
 {
 	struct rb_root *root = &buffer_root;

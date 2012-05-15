@@ -247,11 +247,12 @@ struct msm_panel_common_pdata {
 #ifdef CONFIG_MSM_BUS_SCALING
 	struct msm_bus_scale_pdata *mdp_bus_scale_table;
 #endif
-        int mdp_rev;
-        u32 ov0_wb_size;  /* overlay0 writeback size */
-        u32 ov1_wb_size;  /* overlay1 writeback size */
-        u32 mem_hid;
-        char cont_splash_enabled;
+	int mdp_rev;
+	u32 ov0_wb_size;  /* overlay0 writeback size */
+	u32 ov1_wb_size;  /* overlay1 writeback size */
+	u32 mem_hid;
+	char cont_splash_enabled;
+	char mdp_iommu_split_domain;
 };
 
 struct lcdc_platform_data {
@@ -303,6 +304,10 @@ struct mipi_dsi_panel_platform_data {
 	int fpga_3d_config_addr;
 	int *gpio;
 	struct mipi_dsi_phy_ctrl *phy_ctrl_settings;
+};
+
+struct msm_wfd_platform_data {
+	char (*wfd_check_mdp_iommu_split)(void);
 };
 
 #define PANEL_NAME_MAX_LEN 50

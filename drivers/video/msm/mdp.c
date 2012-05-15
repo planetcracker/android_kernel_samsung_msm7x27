@@ -52,8 +52,10 @@ static struct clk *mdp_clk;
 static struct clk *mdp_pclk;
 static struct clk *mdp_lut_clk;
 int mdp_rev;
-static boolean mdp_hist_force_stop = FALSE;
-static struct regulator *footswitch;
+int mdp_iommu_split_domain;
+
+static struct platform_device *mdp_init_pdev;
+static struct regulator *footswitch, *hdmi_pll_fs;
 static unsigned int mdp_footswitch_on;
 
 struct completion mdp_ppp_comp;
@@ -1795,6 +1797,7 @@ static int mdp_probe(struct platform_device *pdev)
 		}
 
 		mdp_rev = mdp_pdata->mdp_rev;
+		mdp_iommu_split_domain = mdp_pdata->mdp_iommu_split_domain;
 
 		rc = mdp_irq_clk_setup(mdp_pdata->cont_splash_enabled);
 
