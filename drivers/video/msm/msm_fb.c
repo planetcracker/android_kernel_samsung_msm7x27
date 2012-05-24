@@ -1245,7 +1245,7 @@ static int msm_fb_register(struct msm_fb_data_type *mfd)
 	 * calculate smem_len based on max size of two supplied modes.
 	 * Only fb0 has mem. fb1 and fb2 don't have mem.
 	 */
-	if (mfd->index == 0)
+	if (!bf_supported || mfd->index == 0)
 		fix->smem_len = MAX((msm_fb_line_length(mfd->index,
 							panel_info->xres,
 							bpp) *
@@ -1332,7 +1332,7 @@ static int msm_fb_register(struct msm_fb_data_type *mfd)
 	fbram_phys += fbram_offset;
 	fbram_size -= fbram_offset;
 
-	if (mfd->index == 0)
+	if (!bf_supported || mfd->index == 0)
 		if (fbram_size < fix->smem_len) {
 			pr_err("error: no more framebuffer memory!\n");
 			return -ENOMEM;
@@ -1350,7 +1350,7 @@ static int msm_fb_register(struct msm_fb_data_type *mfd)
 			fbi->fix.smem_start, mfd->map_buffer->iova[0],
 			mfd->map_buffer->iova[1]);
 	}
-	if (mfd->index == 0)
+	if (!bf_supported || mfd->index == 0)
 		memset(fbi->screen_base, 0x0, fix->smem_len);
 
 	mfd->op_enable = TRUE;
@@ -1411,6 +1411,9 @@ static int msm_fb_register(struct msm_fb_data_type *mfd)
 
 #if defined(CONFIG_MACH_GIO)
 	if (!load_565rle_image_onfb( "GIO.rle",0,0)) ;	/* Flip buffer */
+#ifdef CONFIG_FB_MSM_LOGO
+	/* Flip buffer */
+	if (!load_565rle_image(INIT_IMAGE_FILE, bf_supported)) ;
 #endif
 
 #if defined(CONFIG_MACH_BENI)
@@ -1595,9 +1598,10 @@ static int msm_fb_open(struct fb_info *info, int user)
 	}
 
 	if (!mfd->ref_cnt) {
-		if ((info->node != 1) && (info->node != 2)) {
+		if (!bf_supported ||
+			(info->node != 1 && info->node != 2))
 			mdp_set_dma_pan_info(info, NULL, TRUE);
-		} else
+		else
 			pr_debug("%s:%d no mdp_set_dma_pan_info %d\n",
 				__func__, __LINE__, info->node);
 
@@ -1650,7 +1654,8 @@ static int msm_fb_pan_display(struct fb_var_screeninfo *var,
 	/*
 	 * If framebuffer is 1 or 2, io pen display is not allowed.
 	 */
-	if (info->node == 1 || info->node == 2) {
+	if (bf_supported &&
+		(info->node == 1 || info->node == 2)) {
 		pr_err("%s: no pan display for fb%d!",
 		       __func__, info->node);
 		return -EPERM;
@@ -1822,7 +1827,8 @@ static int msm_fb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 	if ((var->xres_virtual <= 0) || (var->yres_virtual <= 0))
 		return -EINVAL;
 
-	if ((info->node != 1) && (info->node != 2))
+	if (!bf_supported ||
+		(info->node != 1 && info->node != 2))
 		if (info->fix.smem_len <
 		    (var->xres_virtual*
 		     var->yres_virtual*
@@ -2693,7 +2699,8 @@ static int msmfb_blit(struct fb_info *info, void __user *p)
 	struct mdp_blit_req_list req_list_header;
 
 	int count, i, req_list_count;
-	if (info->node == 1 || info->node == 2) {
+	if (bf_supported &&
+		(info->node == 1 || info->node == 2)) {
 		pr_err("%s: no pan display for fb%d.",
 		       __func__, info->node);
 		return -EPERM;
