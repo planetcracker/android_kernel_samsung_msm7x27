@@ -1054,6 +1054,9 @@ bool hdmi_common_get_video_format_from_drv_data(struct msm_fb_data_type *mfd)
 
 	if (var->reserved[3]) {
 		format = var->reserved[3]-1;
+		DEV_DBG("reserved format is %d\n", format);
+	} else if (hdmi_prim_resolution) {
+		format = hdmi_prim_resolution - 1;
 	} else {
 		DEV_DBG("detecting resolution from %dx%d use var->reserved[3]"
 			" to specify mode", mfd->var_xres, mfd->var_yres);
