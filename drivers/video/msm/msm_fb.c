@@ -3251,6 +3251,31 @@ static void msmfb_set_color_conv(struct mdp_csc *p)
 }
 #endif
 
+static int msmfb_notify_update(struct fb_info *info, unsigned long *argp)
+{
+	int ret, notify;
+	struct msm_fb_data_type *mfd = (struct msm_fb_data_type *)info->par;
+
+	ret = copy_from_user(&notify, argp, sizeof(int));
+	if (ret) {
+		pr_err("%s:ioctl failed\n", __func__);
+		return ret;
+	}
+
+	if (notify > NOTIFY_UPDATE_STOP)
+		return -EINVAL;
+
+	if (notify == NOTIFY_UPDATE_START) {
+		INIT_COMPLETION(mfd->msmfb_update_notify);
+		ret = wait_for_completion_interruptible_timeout(
+		&mfd->msmfb_update_notify, 4*HZ);
+	} else {
+		INIT_COMPLETION(mfd->msmfb_no_update_notify);
+		ret = wait_for_completion_interruptible_timeout(
+		&mfd->msmfb_no_update_notify, 4*HZ);
+	}
+	return (ret > 0) ? 0 : -1;
+}
 
 static int msmfb_handle_pp_ioctl(struct msm_fb_data_type *mfd,
 						struct msmfb_mdp_pp *pp_ptr)
