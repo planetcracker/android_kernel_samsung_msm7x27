@@ -238,6 +238,8 @@ struct msm_fb_data_type {
 	u32 use_ov1_blt, ov1_blt_state;
 	u32 writeback_state;
 	int cont_splash_done;
+	void *copy_splash_buf;
+	unsigned char *copy_splash_phys;
 };
 
 struct dentry *msm_fb_get_debugfs_root(void);
