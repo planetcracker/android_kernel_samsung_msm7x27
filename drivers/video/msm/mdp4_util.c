@@ -39,6 +39,148 @@
 
 struct mdp4_statistic mdp4_stat;
 
+struct mdp_csc_cfg_data csc_cfg_matrix[CSC_MAX_BLOCKS] = {
+	{
+	.block = MDP_BLOCK_VG_1,
+	.csc_data = {
+			(MDP_CSC_FLAG_YUV_OUT),
+			{
+				0x0254, 0x0000, 0x0331,
+				0x0254, 0xff37, 0xfe60,
+				0x0254, 0x0409, 0x0000,
+			},
+			{
+				0xfff0, 0xff80, 0xff80,
+			},
+			{
+				0, 0, 0,
+			},
+			{
+				0, 0xff, 0, 0xff, 0, 0xff,
+			},
+			{
+				0, 0xff, 0, 0xff, 0, 0xff,
+			},
+		},
+	},
+	{
+	.block = MDP_BLOCK_VG_2,
+	.csc_data = {
+			(MDP_CSC_FLAG_YUV_OUT),
+			{
+				0x0254, 0x0000, 0x0331,
+				0x0254, 0xff37, 0xfe60,
+				0x0254, 0x0409, 0x0000,
+			},
+			{
+				0xfff0, 0xff80, 0xff80,
+			},
+			{
+				0, 0, 0,
+			},
+			{
+				0, 0xff, 0, 0xff, 0, 0xff,
+			},
+			{
+				0, 0xff, 0, 0xff, 0, 0xff,
+			},
+		},
+	},
+	{
+	.block = MDP_BLOCK_DMA_P,
+	.csc_data = {
+			(0),
+			{
+				0x0200, 0x0000, 0x0000,
+				0x0000, 0x0200, 0x0000,
+				0x0000, 0x0000, 0x0200,
+			},
+			{
+				0x0, 0x0, 0x0,
+			},
+			{
+				0, 0, 0,
+			},
+			{
+				0, 0xff, 0, 0xff, 0, 0xff,
+			},
+			{
+				0, 0xff, 0, 0xff, 0, 0xff,
+			},
+		},
+	},
+	{
+	.block = MDP_BLOCK_OVERLAY_1,
+	.csc_data = {
+			(0),
+			{
+				0x0200, 0x0000, 0x0000,
+				0x0000, 0x0200, 0x0000,
+				0x0000, 0x0000, 0x0200,
+			},
+			{
+				0x0, 0x0, 0x0,
+			},
+			{
+				0, 0, 0,
+			},
+			{
+				0, 0xff, 0, 0xff, 0, 0xff,
+			},
+			{
+				0, 0xff, 0, 0xff, 0, 0xff,
+			},
+		},
+	},
+	{
+	.block = MDP_BLOCK_OVERLAY_2,
+	.csc_data = {
+			(0),
+			{
+				0x0200, 0x0000, 0x0000,
+				0x0000, 0x0200, 0x0000,
+				0x0000, 0x0000, 0x0200,
+			},
+			{
+				0x0, 0x0, 0x0,
+			},
+			{
+				0, 0, 0,
+			},
+			{
+				0, 0xff, 0, 0xff, 0, 0xff,
+			},
+			{
+				0, 0xff, 0, 0xff, 0, 0xff,
+			},
+		},
+	},
+	{
+	.block = MDP_BLOCK_DMA_S,
+	.csc_data = {
+			(0),
+			{
+				0x0200, 0x0000, 0x0000,
+				0x0000, 0x0200, 0x0000,
+				0x0000, 0x0000, 0x0200,
+			},
+			{
+				0x0, 0x0, 0x0,
+			},
+			{
+				0, 0, 0,
+			},
+			{
+				0, 0xff, 0, 0xff, 0, 0xff,
+			},
+			{
+				0, 0xff, 0, 0xff, 0, 0xff,
+			},
+		},
+	},
+};
+
+
 unsigned is_mdp4_hw_reset(void)
 {
 	unsigned hw_reset = 0;
@@ -248,7 +390,8 @@ void mdp4_fetch_cfg(uint32 core_clk)
 void mdp4_hw_init(void)
 {
 	ulong bits;
-
+	uint32 clk_rate;
+	int i;
 	/* MDP cmd block enable */
 	mdp_pipe_ctrl(MDP_CMD_BLOCK, MDP_BLOCK_POWER_ON, FALSE);
 
@@ -268,27 +411,13 @@ void mdp4_hw_init(void)
 	mdp4_vg_qseed_init(0);
 	mdp4_vg_qseed_init(1);
 
-	/* yuv2rgb */
-	mdp4_vg_csc_mv_setup(0);
-	mdp4_vg_csc_mv_setup(1);
-	mdp4_vg_csc_pre_bv_setup(0);
-	mdp4_vg_csc_pre_bv_setup(1);
-	mdp4_vg_csc_post_bv_setup(0);
-	mdp4_vg_csc_post_bv_setup(1);
-	mdp4_vg_csc_pre_lv_setup(0);
-	mdp4_vg_csc_pre_lv_setup(1);
-	mdp4_vg_csc_post_lv_setup(0);
-	mdp4_vg_csc_post_lv_setup(1);
+	for (i = 0; i < CSC_MAX_BLOCKS; i++)
+		mdp4_csc_config(&csc_cfg_matrix[i]);
 
-	/* rgb2yuv */
-	mdp4_mixer1_csc_mv_setup();
-	mdp4_mixer1_csc_pre_bv_setup();
-	mdp4_mixer1_csc_post_bv_setup();
-	mdp4_mixer1_csc_pre_lv_setup();
-	mdp4_mixer1_csc_post_lv_setup();
-
-	mdp4_mixer_gc_lut_setup(0);
-	mdp4_mixer_gc_lut_setup(1);
+	if (mdp_rev <= MDP_REV_41) {
+		mdp4_mixer_gc_lut_setup(0);
+		mdp4_mixer_gc_lut_setup(1);
+	}
 
 	mdp4_vg_igc_lut_setup(0);
 	mdp4_vg_igc_lut_setup(1);
@@ -1156,205 +1285,47 @@ void mdp4_mixer_blend_init(mixer_num)
 }
 
 
-static uint32 csc_matrix_tab[9] = {
-	0x0254, 0x0000, 0x0331,
-	0x0254, 0xff37, 0xfe60,
-	0x0254, 0x0409, 0x0000
-};
 
-static uint32 csc_pre_bv_tab[3] = {0xfff0, 0xff80, 0xff80 };
-static uint32 csc_post_bv_tab[3] = {0, 0, 0 };
-
-static  uint32 csc_pre_lv_tab[6] =  {0, 0xff, 0, 0xff, 0, 0xff };
-static  uint32 csc_post_lv_tab[6] = {0, 0xff, 0, 0xff, 0, 0xff };
-
-#define MDP4_CSC_MV_OFF 	0x4400
-#define MDP4_CSC_PRE_BV_OFF 	0x4500
-#define MDP4_CSC_POST_BV_OFF 	0x4580
-#define MDP4_CSC_PRE_LV_OFF 	0x4600
-#define MDP4_CSC_POST_LV_OFF 	0x4680
-
-void mdp4_vg_csc_mv_setup(int vp_num)
+void mdp4_vg_csc_update(struct mdp_csc *p)
 {
-	uint32 *off;
-	int i, voff;
+	struct mdp4_overlay_pipe *pipe;
+	uint32_t block = 0;
+	int i = 0;
 
-	voff = MDP4_VIDEO_OFF * vp_num;
-	off = (uint32 *)(MDP_BASE + MDP4_VIDEO_BASE + voff +
-					MDP4_CSC_MV_OFF);
-
-	mdp_pipe_ctrl(MDP_CMD_BLOCK, MDP_BLOCK_POWER_ON, FALSE);
-	for (i = 0; i < 9; i++) {
-		outpdw(off, csc_matrix_tab[i]);
-		off++;
+	pipe = mdp4_overlay_ndx2pipe(p->id);
+	if (pipe == NULL) {
+		pr_err("%s: p->id = %d Error\n", __func__, p->id);
+		return;
 	}
-	mdp_pipe_ctrl(MDP_CMD_BLOCK, MDP_BLOCK_POWER_OFF, FALSE);
-}
+	if (pipe->pipe_num == OVERLAY_PIPE_VG1)
+		block = MDP_BLOCK_VG_1;
+	else if (pipe->pipe_num == OVERLAY_PIPE_VG2)
+		block = MDP_BLOCK_VG_2;
+	else
+		return;
 
-void mdp4_vg_csc_pre_bv_setup(int vp_num)
-{
-	uint32 *off;
-	int i, voff;
-
-	voff = MDP4_VIDEO_OFF * vp_num;
-	off = (uint32 *)(MDP_BASE + MDP4_VIDEO_BASE + voff +
-					MDP4_CSC_PRE_BV_OFF);
-
-	mdp_pipe_ctrl(MDP_CMD_BLOCK, MDP_BLOCK_POWER_ON, FALSE);
-	for (i = 0; i < 3; i++) {
-		outpdw(off, csc_pre_bv_tab[i]);
-		off++;
+	for (i = 0; i < CSC_MAX_BLOCKS; i++) {
+		if (csc_cfg_matrix[i].block == block)
+			break;
 	}
-	mdp_pipe_ctrl(MDP_CMD_BLOCK, MDP_BLOCK_POWER_OFF, FALSE);
+	if (i == CSC_MAX_BLOCKS)
+		return;
+
+	memcpy(&csc_cfg_matrix[i].csc_data.csc_mv, p->csc_mv,
+			sizeof(p->csc_mv));
+	memcpy(&csc_cfg_matrix[i].csc_data.csc_pre_bv, p->csc_pre_bv,
+		sizeof(p->csc_pre_bv));
+	memcpy(&csc_cfg_matrix[i].csc_data.csc_post_bv, p->csc_post_bv,
+		sizeof(p->csc_post_bv));
+	memcpy(&csc_cfg_matrix[i].csc_data.csc_pre_lv, p->csc_pre_lv,
+		sizeof(p->csc_pre_lv));
+	memcpy(&csc_cfg_matrix[i].csc_data.csc_post_lv, p->csc_post_lv,
+		sizeof(p->csc_post_lv));
+	csc_cfg_matrix[i].csc_data.flags = MDP_CSC_FLAG_YUV_OUT;
+
+	mdp4_csc_config(&csc_cfg_matrix[i]);
+
 }
-
-void mdp4_vg_csc_post_bv_setup(int vp_num)
-{
-	uint32 *off;
-	int i, voff;
-
-	voff = MDP4_VIDEO_OFF * vp_num;
-	off = (uint32 *)(MDP_BASE + MDP4_VIDEO_BASE + voff +
-					MDP4_CSC_POST_BV_OFF);
-
-	mdp_pipe_ctrl(MDP_CMD_BLOCK, MDP_BLOCK_POWER_ON, FALSE);
-	for (i = 0; i < 3; i++) {
-		outpdw(off, csc_post_bv_tab[i]);
-		off++;
-	}
-	mdp_pipe_ctrl(MDP_CMD_BLOCK, MDP_BLOCK_POWER_OFF, FALSE);
-}
-
-void mdp4_vg_csc_pre_lv_setup(int vp_num)
-{
-	uint32 *off;
-	int i, voff;
-
-	voff = MDP4_VIDEO_OFF * vp_num;
-	off = (uint32 *)(MDP_BASE + MDP4_VIDEO_BASE + voff +
-					MDP4_CSC_PRE_LV_OFF);
-
-	mdp_pipe_ctrl(MDP_CMD_BLOCK, MDP_BLOCK_POWER_ON, FALSE);
-	for (i = 0; i < 6; i++) {
-		outpdw(off, csc_pre_lv_tab[i]);
-		off++;
-	}
-	mdp_pipe_ctrl(MDP_CMD_BLOCK, MDP_BLOCK_POWER_OFF, FALSE);
-}
-
-void mdp4_vg_csc_post_lv_setup(int vp_num)
-{
-	uint32 *off;
-	int i, voff;
-
-	voff = MDP4_VIDEO_OFF * vp_num;
-	off = (uint32 *)(MDP_BASE + MDP4_VIDEO_BASE + voff +
-					MDP4_CSC_POST_LV_OFF);
-
-	mdp_pipe_ctrl(MDP_CMD_BLOCK, MDP_BLOCK_POWER_ON, FALSE);
-	for (i = 0; i < 6; i++) {
-		outpdw(off, csc_post_lv_tab[i]);
-		off++;
-	}
-	mdp_pipe_ctrl(MDP_CMD_BLOCK, MDP_BLOCK_POWER_OFF, FALSE);
-}
-
-static uint32 csc_rgb2yuv_matrix_tab[9] = {
-	0x0083, 0x0102, 0x0032,
-	0x1fb5, 0x1f6c, 0x00e1,
-	0x00e1, 0x1f45, 0x1fdc
-};
-
-static uint32 csc_rgb2yuv_pre_bv_tab[3] = {0, 0, 0};
-
-static uint32 csc_rgb2yuv_post_bv_tab[3] = {0x0010, 0x0080, 0x0080};
-
-static  uint32 csc_rgb2yuv_pre_lv_tab[6] = {
-	0x00, 0xff, 0x00,
-	0xff, 0x00, 0xff
-};
-
-static  uint32 csc_rgb2yuv_post_lv_tab[6] = {
-	0x0010, 0x00eb, 0x0010,
-	0x00f0, 0x0010, 0x00f0
-};
-
-void mdp4_mixer1_csc_mv_setup(void)
-{
-	uint32 *off;
-	int i;
-
-	off = (uint32 *)(MDP_BASE + MDP4_OVERLAYPROC1_BASE + 0x2400);
-
-	mdp_pipe_ctrl(MDP_CMD_BLOCK, MDP_BLOCK_POWER_ON, FALSE);
-	for (i = 0; i < 9; i++) {
-		outpdw(off, csc_rgb2yuv_matrix_tab[i]);
-		off++;
-	}
-	mdp_pipe_ctrl(MDP_CMD_BLOCK, MDP_BLOCK_POWER_OFF, FALSE);
-}
-
-void mdp4_mixer1_csc_pre_bv_setup(void)
-{
-	uint32 *off;
-	int i;
-
-	off = (uint32 *)(MDP_BASE + MDP4_OVERLAYPROC1_BASE + 0x2500);
-
-	mdp_pipe_ctrl(MDP_CMD_BLOCK, MDP_BLOCK_POWER_ON, FALSE);
-	for (i = 0; i < 3; i++) {
-		outpdw(off, csc_rgb2yuv_pre_bv_tab[i]);
-		off++;
-	}
-	mdp_pipe_ctrl(MDP_CMD_BLOCK, MDP_BLOCK_POWER_OFF, FALSE);
-}
-
-void mdp4_mixer1_csc_post_bv_setup(void)
-{
-	uint32 *off;
-	int i;
-
-	off = (uint32 *)(MDP_BASE + MDP4_OVERLAYPROC1_BASE + 0x2580);
-
-	mdp_pipe_ctrl(MDP_CMD_BLOCK, MDP_BLOCK_POWER_ON, FALSE);
-	for (i = 0; i < 3; i++) {
-		outpdw(off, csc_rgb2yuv_post_bv_tab[i]);
-		off++;
-	}
-	mdp_pipe_ctrl(MDP_CMD_BLOCK, MDP_BLOCK_POWER_OFF, FALSE);
-}
-
-void mdp4_mixer1_csc_pre_lv_setup(void)
-{
-	uint32 *off;
-	int i;
-
-	off = (uint32 *)(MDP_BASE + MDP4_OVERLAYPROC1_BASE + 0x2600);
-
-	mdp_pipe_ctrl(MDP_CMD_BLOCK, MDP_BLOCK_POWER_ON, FALSE);
-	for (i = 0; i < 6; i++) {
-		outpdw(off, csc_rgb2yuv_pre_lv_tab[i]);
-		off++;
-	}
-	mdp_pipe_ctrl(MDP_CMD_BLOCK, MDP_BLOCK_POWER_OFF, FALSE);
-}
-
-void mdp4_mixer1_csc_post_lv_setup(void)
-{
-	uint32 *off;
-	int i;
-
-	off = (uint32 *)(MDP_BASE + MDP4_OVERLAYPROC1_BASE + 0x2680);
-
-	mdp_pipe_ctrl(MDP_CMD_BLOCK, MDP_BLOCK_POWER_ON, FALSE);
-	for (i = 0; i < 6; i++) {
-		outpdw(off, csc_rgb2yuv_post_lv_tab[i]);
-		off++;
-	}
-	mdp_pipe_ctrl(MDP_CMD_BLOCK, MDP_BLOCK_POWER_OFF, FALSE);
-}
-
-
 char gc_lut[] = {
 	0x0, 0x1, 0x2, 0x2, 0x3, 0x4, 0x5, 0x6,
 	0x6, 0x7, 0x8, 0x9, 0xA, 0xA, 0xB, 0xC,
