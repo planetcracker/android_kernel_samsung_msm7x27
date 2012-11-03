@@ -50,6 +50,23 @@
 #define MSMFB_OVERLAY_3D       _IOWR(MSMFB_IOCTL_MAGIC, 146, \
 						struct msmfb_overlay_3d)
 
+#define MSMFB_MIXER_INFO       _IOWR(MSMFB_IOCTL_MAGIC, 148, \
+						struct msmfb_mixer_info_req)
+#define MSMFB_OVERLAY_PLAY_WAIT _IOWR(MSMFB_IOCTL_MAGIC, 149, \
+						struct msmfb_overlay_data)
+#define MSMFB_WRITEBACK_INIT _IO(MSMFB_IOCTL_MAGIC, 150)
+#define MSMFB_WRITEBACK_START _IO(MSMFB_IOCTL_MAGIC, 151)
+#define MSMFB_WRITEBACK_STOP _IO(MSMFB_IOCTL_MAGIC, 152)
+#define MSMFB_WRITEBACK_QUEUE_BUFFER _IOW(MSMFB_IOCTL_MAGIC, 153, \
+						struct msmfb_data)
+#define MSMFB_WRITEBACK_DEQUEUE_BUFFER _IOW(MSMFB_IOCTL_MAGIC, 154, \
+						struct msmfb_data)
+#define MSMFB_WRITEBACK_TERMINATE _IO(MSMFB_IOCTL_MAGIC, 155)
+#define MSMFB_MDP_PP _IOWR(MSMFB_IOCTL_MAGIC, 156, struct msmfb_mdp_pp)
+
+#define MSMFB_OVERLAY_COMMIT      _IOW(MSMFB_IOCTL_MAGIC, 163, unsigned int)
+
+#define FB_TYPE_3D_PANEL 0x10101010
 #define MDP_IMGTYPE2_START 0x10000
 
 enum {
