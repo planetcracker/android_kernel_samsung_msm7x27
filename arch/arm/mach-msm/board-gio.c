@@ -101,7 +101,11 @@
 #if defined(CONFIG_MACH_GIO)
 #define MSM_PMEM_MDP_SIZE 	0x1B76000 // size = 23<<20; in gralloc.cpp
 #define MSM_PMEM_ADSP_SIZE 	0x8DE000		// 3M :0x86E000, 2M : 0x77F000 
-#define MSM_FB_SIZE 		0x238000 // 0x500000//0x11C000	//0x5DC00 
+#ifdef CONFIG_FB_MSM_TRIPLE_BUFFER
+#define MSM_FB_SIZE 0x2EE000
+#else
+#define MSM_FB_SIZE 0x238000 // 0x238000 // 0x500000 //0x11C000 //0x5DC00
+#endif
 #define MSM_GPU_PHYS_SIZE 	SZ_2M 
 #define PMEM_KERNEL_EBI1_SIZE 	0x1C000 
 #endif	// CONFIG_MACH_CALLISTO
@@ -2182,6 +2186,7 @@ static struct platform_device *devices[] __initdata = {
 
 static struct msm_panel_common_pdata mdp_pdata = {
 	.gpio = 97,
+        .mdp_rev = MDP_REV_30,
 };
 
 static void __init msm_fb_add_devices(void)
