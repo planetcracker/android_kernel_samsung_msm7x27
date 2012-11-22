@@ -78,7 +78,7 @@ static unsigned convert_dsp_samp_index(unsigned index)
 	case 8000:
 		return AUDREC_CMD_SAMP_RATE_INDX_8000;
 	default:
-		return AUDREC_CMD_SAMP_RATE_INDX_44100;
+		return AUDREC_CMD_SAMP_RATE_INDX_48000;
 	}
 }
 
@@ -104,7 +104,7 @@ static unsigned convert_samp_rate(unsigned hz)
 	case 8000:
 		return RPC_AUD_DEF_SAMPLE_RATE_8000;
 	default:
-		return RPC_AUD_DEF_SAMPLE_RATE_44100;
+		return RPC_AUD_DEF_SAMPLE_RATE_48000;
 	}
 }
 

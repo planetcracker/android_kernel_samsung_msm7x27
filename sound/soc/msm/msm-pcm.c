@@ -294,7 +294,7 @@ int alsa_adsp_configure(struct msm_audio *prtd)
 		goto err2;
 	if (prtd->dir == SNDRV_PCM_STREAM_PLAYBACK) {
 		prtd->out_buffer_size = PLAYBACK_DMASZ;
-		prtd->out_sample_rate = 44100;
+		prtd->out_sample_rate = 48000;
 		prtd->out_channel_mode = AUDPP_CMD_PCM_INTF_STEREO_V;
 		prtd->out_weight = 100;
 
@@ -306,8 +306,8 @@ int alsa_adsp_configure(struct msm_audio *prtd)
 		prtd->out[1].size = BUFSZ;
 	}
 	if (prtd->dir == SNDRV_PCM_STREAM_CAPTURE) {
-		prtd->samp_rate = RPC_AUD_DEF_SAMPLE_RATE_44100;
-		prtd->samp_rate_index = AUDREC_CMD_SAMP_RATE_INDX_44100;
+		prtd->samp_rate = RPC_AUD_DEF_SAMPLE_RATE_48000;
+		prtd->samp_rate_index = AUDREC_CMD_SAMP_RATE_INDX_48000;
 		prtd->channel_mode = AUDREC_CMD_STEREO_MODE_STEREO;
 		prtd->buffer_size = STEREO_DATA_SIZE;
 		prtd->type = AUDREC_CMD_TYPE_0_INDEX_WAV;
