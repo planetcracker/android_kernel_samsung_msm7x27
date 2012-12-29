@@ -444,8 +444,6 @@ __setup_mmu:	sub	r3, r4, #16384		@ Page directory size
 		mov	pc, lr
 ENDPROC(__setup_mmu)
 
-<<<<<<< HEAD
-=======
 @ Enable unaligned access on v6, to allow better code generation
 @ for the decompressor C code:
 __armv6_mmu_cache_on:
@@ -461,7 +459,7 @@ __arm926ejs_mmu_cache_on:
 		mcr	p15, 7, r0, c15, c0, 0
 #endif
 
->>>>>>> 392e49a... ARM: 7583/1: decompressor: Enable unaligned memory access for v6 and above
+
 __armv4_mmu_cache_on:
 		mov	r12, lr
 #ifdef CONFIG_MMU
