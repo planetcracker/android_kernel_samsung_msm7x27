@@ -38,6 +38,9 @@
 =======
 #include <trace/events/writeback.h>
 #include <linux/earlysuspend.h>
+<<<<<<< HEAD
+>>>>>>> 405dbcc... mm: writeback: every 500ms the writeback daemon kicks in and flushes the dirty pages into disk. Thats not very pleasant for performance and *maybe* battery. This patch disables the writeback function while the screen is on, and enables it back when the screen is off to flush all the dirty pages. In my real world usage testing I notice a slight bump in smoothness and performance while using the device.
+=======
 >>>>>>> 405dbcc... mm: writeback: every 500ms the writeback daemon kicks in and flushes the dirty pages into disk. Thats not very pleasant for performance and *maybe* battery. This patch disables the writeback function while the screen is on, and enables it back when the screen is off to flush all the dirty pages. In my real world usage testing I notice a slight bump in smoothness and performance while using the device.
 
 /*
