@@ -21,7 +21,6 @@ config IOSCHED_DEADLINE
 	  a new point in the service tree and doing a batch of IO from there
 	  in case of expiry.
 
-<<<<<<< HEAD
 config IOSCHED_BFQ
 	tristate "BFQ I/O scheduler"
 	depends on EXPERIMENTAL
@@ -50,7 +49,7 @@ config IOSCHED_VR
 	---help---
 		Requests are chosen according to SSTF with a penalty of rev_penalty
 		for switching head direction.
-=======
+
 config IOSCHED_ROW
 	tristate "ROW I/O scheduler"
 	---help---
@@ -60,7 +59,7 @@ config IOSCHED_ROW
 	  manner when the dispatch quantum for each queue is calculated
 	  according to queue priority.
 	  Most suitable for mobile devices.
->>>>>>> 0b054fd... Add ROW I/O Scheduler by Qualcomm.
+
 
 config IOSCHED_CFQ
 	tristate "CFQ I/O scheduler"
@@ -105,13 +104,12 @@ choice
 	config DEFAULT_DEADLINE
 		bool "Deadline" if IOSCHED_DEADLINE=y
 
-<<<<<<< HEAD
 	config DEFAULT_BFQ
 		bool "BFQ" if IOSCHED_BFQ=y
 
 	config DEFAULT_VR
 		bool "V(R)" if IOSCHED_VR=y
-=======
+
 	config DEFAULT_ROW
 		bool "ROW" if IOSCHED_ROW=y
 		help
@@ -121,7 +119,6 @@ choice
 		  Dispatching is done in a RR manner when the dispatch quantum
 		  for each queue is defined according to queue priority.
 		  Most suitable for mobile devices.
->>>>>>> 0b054fd... Add ROW I/O Scheduler by Qualcomm.
 
 	config DEFAULT_CFQ
 		bool "CFQ" if IOSCHED_CFQ=y

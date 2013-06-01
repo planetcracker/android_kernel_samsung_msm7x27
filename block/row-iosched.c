@@ -154,7 +154,7 @@ struct row_data {
 	unsigned int			cycle_flags;
 };
 
-#define RQ_ROWQ(rq) ((struct row_queue *) ((rq)->elv.priv[0]))
+#define RQ_ROWQ(rq) ((struct row_queue *) ((rq)->elevator_private))
 
 #define row_log(q, fmt, args...)   \
 	blk_add_trace_msg(q, "%s():" fmt , __func__, ##args)
@@ -468,8 +468,8 @@ static void *row_init_queue(struct request_queue *q)
 	if (!rdata->read_idle.idle_time)
 		rdata->read_idle.idle_time = 1;
 	rdata->read_idle.freq = ROW_READ_FREQ_MSEC;
-	rdata->read_idle.idle_workqueue = alloc_workqueue("row_idle_work",
-					    WQ_MEM_RECLAIM | WQ_HIGHPRI, 0);
+	rdata->read_idle.idle_workqueue = __create_workqueue("row_idle_work",
+					    0, 0, 0);
 	if (!rdata->read_idle.idle_workqueue)
 		panic("Failed to create idle workqueue\n");
 	INIT_DELAYED_WORK(&rdata->read_idle.idle_work, kick_queue);
@@ -553,7 +553,7 @@ row_set_request(struct request_queue *q, struct request *rq, gfp_t gfp_mask)
 	unsigned long flags;
 
 	spin_lock_irqsave(q->queue_lock, flags);
-	rq->elv.priv[0] =
+	rq->elevator_private =
 		(void *)(&rd->row_queues[get_queue_type(rq)]);
 	spin_unlock_irqrestore(q->queue_lock, flags);
 
@@ -569,7 +569,7 @@ static ssize_t row_var_show(int var, char *page)
 static ssize_t row_var_store(int *var, const char *page, size_t count)
 {
 	int err;
-	err = kstrtoul(page, 10, (unsigned long *)var);
+	err = strict_strtoul(page, 10, (unsigned long *)var);
 
 	return count;
 }
