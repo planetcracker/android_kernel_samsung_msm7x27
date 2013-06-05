@@ -70,8 +70,8 @@ static const int queue_quantum[] = {
 };
 
 /* Default values for idling on read queues */
-#define ROW_IDLE_TIME_MSEC 10	/* msec */
-#define ROW_READ_FREQ_MSEC 25	/* msec */
+#define ROW_IDLE_TIME_MSEC 5	/* msec */
+#define ROW_READ_FREQ_MSEC 20	/* msec */
 
 /**
  * struct rowq_idling_data -  parameters for idling on the queue
@@ -468,8 +468,8 @@ static void *row_init_queue(struct request_queue *q)
 	if (!rdata->read_idle.idle_time)
 		rdata->read_idle.idle_time = 1;
 	rdata->read_idle.freq = ROW_READ_FREQ_MSEC;
-	rdata->read_idle.idle_workqueue = __create_workqueue("row_idle_work",
-					    1, 0, 1);
+	rdata->read_idle.idle_workqueue = alloc_workqueue("row_idle_work",
+					    WQ_MEM_RECLAIM | WQ_HIGHPRI, 0);
 	if (!rdata->read_idle.idle_workqueue)
 		panic("Failed to create idle workqueue\n");
 	INIT_DELAYED_WORK(&rdata->read_idle.idle_work, kick_queue);
@@ -597,7 +597,7 @@ SHOW_FUNCTION(row_lp_read_quantum_show,
 	rowd->row_queues[ROWQ_PRIO_LOW_READ].disp_quantum, 0);
 SHOW_FUNCTION(row_lp_swrite_quantum_show,
 	rowd->row_queues[ROWQ_PRIO_LOW_SWRITE].disp_quantum, 0);
-SHOW_FUNCTION(row_read_idle_show, rowd->read_idle.idle_time, 1);
+SHOW_FUNCTION(row_read_idle_show, rowd->read_idle.idle_time, 0);
 SHOW_FUNCTION(row_read_idle_freq_show, rowd->read_idle.freq, 0);
 #undef SHOW_FUNCTION
 

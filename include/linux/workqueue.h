@@ -179,6 +179,12 @@ static inline void destroy_work_on_stack(struct work_struct *work) { }
 #define work_clear_pending(work) \
 	clear_bit(WORK_STRUCT_PENDING, work_data_bits(work))
 
+enum {
+	WQ_MEM_RECLAIM		= 1 << 3, /* may be used for memory reclaim */
+	WQ_HIGHPRI		= 1 << 4, /* high priority */
+	WQ_RESCUER		= 1 << 7, /* internal: workqueue has rescuer */
+};
+
 
 extern struct workqueue_struct *
 __create_workqueue_key(const char *name, int singlethread,
@@ -210,6 +216,9 @@ __create_workqueue_key(const char *name, int singlethread,
 #define create_rt_workqueue(name) __create_workqueue((name), 0, 0, 1)
 #define create_freezeable_workqueue(name) __create_workqueue((name), 1, 1, 0)
 #define create_singlethread_workqueue(name) __create_workqueue((name), 1, 0, 0)
+#ifndef alloc_workqueue
+#define alloc_workqueue(name, flags, max_active) __create_workqueue(name, flags, max_active, 0)
+#endif
 
 extern void destroy_workqueue(struct workqueue_struct *wq);
 
