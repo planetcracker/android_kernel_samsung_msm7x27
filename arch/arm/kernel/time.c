@@ -51,7 +51,7 @@ EXPORT_SYMBOL(rtc_lock);
 /* change this if you have some constant time drift */
 #define USECS_PER_JIFFY	(1000000/HZ)
 
-#ifdef CONFIG_SMP
+/*#ifdef CONFIG_SMP
 unsigned long profile_pc(struct pt_regs *regs)
 {
 	struct stackframe frame;
@@ -72,7 +72,7 @@ unsigned long profile_pc(struct pt_regs *regs)
 	return frame.pc;
 }
 EXPORT_SYMBOL(profile_pc);
-#endif
+#endif*/
 
 #ifdef CONFIG_ARCH_USES_GETTIMEOFFSET
 u32 arch_gettimeoffset(void)
