@@ -70,7 +70,7 @@ static const int queue_quantum[] = {
 };
 
 /* Default values for idling on read queues */
-#define ROW_IDLE_TIME_MSEC 5	/* msec */
+#define ROW_IDLE_TIME_MSEC 3s	/* msec */
 #define ROW_READ_FREQ_MSEC 20	/* msec */
 
 /**
@@ -469,7 +469,7 @@ static void *row_init_queue(struct request_queue *q)
 		rdata->read_idle.idle_time = 1;
 	rdata->read_idle.freq = ROW_READ_FREQ_MSEC;
 	rdata->read_idle.idle_workqueue = alloc_workqueue("row_idle_work",
-					    WQ_MEM_RECLAIM | WQ_HIGHPRI, 0);
+					    WQ_MEM_RECLAIM | WQ_HIGHPRI | WQ_RESCUER, 0);
 	if (!rdata->read_idle.idle_workqueue)
 		panic("Failed to create idle workqueue\n");
 	INIT_DELAYED_WORK(&rdata->read_idle.idle_work, kick_queue);
