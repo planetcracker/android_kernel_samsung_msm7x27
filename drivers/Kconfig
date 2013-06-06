@@ -120,8 +120,6 @@ source "drivers/staging/Kconfig"
 
 source "drivers/uvgio/Kconfig"
 
-source "drivers/uvtass/Kconfig"
-
 source "drivers/uvcooper/Kconfig"
 
 source "drivers/uvbeni/Kconfig"
