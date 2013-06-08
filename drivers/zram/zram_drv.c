@@ -38,6 +38,19 @@
 
 #include "zram_drv.h"
 
+#if defined(CONFIG_ZRAM_LZO)
+#include <linux/lzo.h>
+#define WMSIZE		LZO1X_MEM_COMPRESS
+#define COMPRESS(s, sl, d, dl, wm)	\
+	lzo1x_1_compress(s, sl, d, dl, wm)
+#define DECOMPRESS(s, sl, d, dl)	\
+	lzo1x_decompress_safe(s, sl, d, dl)
+#elif defined(CONFIG_ZRAM_LZ4)
+#include "../staging/lz4/lz4.h"
+#define WMSIZE		LZ4_COMPRESSBOUND
+#define COMPRESS(s, d, wm)	\
+	int LZ4_compress(s, d, wm)
+#elif defined(CONFIG_ZRAM_SNAPPY)
 #include "../staging/snappy/csnappy.h" /* if built in drivers/staging */
 #define WMSIZE_ORDER	((PAGE_SHIFT > 14) ? (15) : (PAGE_SHIFT+1))
 #define WMSIZE		(1 << WMSIZE_ORDER)
@@ -70,7 +83,9 @@ snappy_decompress_(
 	snappy_compress_(s, sl, d, dl, wm)
 #define DECOMPRESS(s, sl, d, dl)	\
 	snappy_decompress_(s, sl, d, dl)
-
+#else
+#error either CONFIG_ZRAM_LZO or CONFIG_ZRAM_SNAPPY must be defined
+#endif
 
 /* Globals */
 static int zram_major;
