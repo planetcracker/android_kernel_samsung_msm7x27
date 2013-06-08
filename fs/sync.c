@@ -19,7 +19,7 @@
 #include "internal.h"
 
 #ifdef CONFIG_DYNAMIC_FSYNC
-extern bool dyn_fsync_early_suspend;
+extern bool early_suspend_active;
 extern bool dyn_fsync_active;
 #endif
 
@@ -188,8 +188,9 @@ int vfs_fsync_range(struct file *file, loff_t start, loff_t end, int datasync)
 	int err, ret;
 
 	#ifdef CONFIG_DYNAMIC_FSYNC
-	if (dyn_fsync_active && !dyn_fsync_early_suspend)
+	if (likely(dyn_fsync_active && !early_suspend_active))
 		return 0;
+	else {
 	#endif
 
 	if (!file->f_op || !file->f_op->fsync) {
@@ -198,6 +199,8 @@ int vfs_fsync_range(struct file *file, loff_t start, loff_t end, int datasync)
 	}
 
 	ret = filemap_write_and_wait_range(mapping, start, end);
+
+
 
 	/*
 	 * We need to protect against concurrent writers, which could cause
@@ -211,6 +214,10 @@ int vfs_fsync_range(struct file *file, loff_t start, loff_t end, int datasync)
 
 out:
 	return ret;
+
+#ifdef CONFIG_DYNAMIC_FSYNC
+	}
+#endif
 }
 EXPORT_SYMBOL(vfs_fsync_range);
 
@@ -246,8 +253,9 @@ static int do_fsync(unsigned int fd, int datasync)
 SYSCALL_DEFINE1(fsync, unsigned int, fd)
 {
 	#ifdef CONFIG_DYNAMIC_FSYNC
-	if (dyn_fsync_active && !dyn_fsync_early_suspend)
+	if (likely(dyn_fsync_active && !early_suspend_active))
 		return 0;
+	else
 	#endif
 
 	return do_fsync(fd, 0);
@@ -256,8 +264,9 @@ SYSCALL_DEFINE1(fsync, unsigned int, fd)
 SYSCALL_DEFINE1(fdatasync, unsigned int, fd)
 {
 	#ifdef CONFIG_DYNAMIC_FSYNC
-	if (dyn_fsync_active && !dyn_fsync_early_suspend)
+	if (likely(dyn_fsync_active && !early_suspend_active))
 		return 0;
+	else
 	#endif
 
 	return do_fsync(fd, 1);
@@ -274,14 +283,18 @@ SYSCALL_DEFINE1(fdatasync, unsigned int, fd)
 int generic_write_sync(struct file *file, loff_t pos, loff_t count)
 {
 	#ifdef CONFIG_DYNAMIC_FSYNC
-	if (dyn_fsync_active && !dyn_fsync_early_suspend)
+	if (likely(dyn_fsync_active && !early_suspend_active))
 		return 0;
+	else {
 	#endif
 
 	if (!(file->f_flags & O_DSYNC) && !IS_SYNC(file->f_mapping->host))
 		return 0;
 	return vfs_fsync_range(file, pos, pos + count - 1,
 			       (file->f_flags & __O_SYNC) ? 0 : 1);
+#ifdef CONFIG_DYNAMIC_FSYNC
+	}
+#endif
 }
 EXPORT_SYMBOL(generic_write_sync);
 
@@ -343,8 +356,9 @@ SYSCALL_DEFINE(sync_file_range)(int fd, loff_t offset, loff_t nbytes,
 	umode_t i_mode;
 
 	#ifdef CONFIG_DYNAMIC_FSYNC
-	if (dyn_fsync_active && !dyn_fsync_early_suspend)
+	if (likely(dyn_fsync_active && !early_suspend_active))
 		return 0;
+	else {
 	#endif
 
 	ret = -EINVAL;
@@ -419,6 +433,9 @@ out_put:
 	fput_light(file, fput_needed);
 out:
 	return ret;
+#ifdef CONFIG_DYNAMIC_FSYNC
+	}
+#endif
 }
 #ifdef CONFIG_HAVE_SYSCALL_WRAPPERS
 asmlinkage long SyS_sync_file_range(long fd, loff_t offset, loff_t nbytes,
@@ -436,8 +453,9 @@ SYSCALL_DEFINE(sync_file_range2)(int fd, unsigned int flags,
 				 loff_t offset, loff_t nbytes)
 {
 	#ifdef CONFIG_DYNAMIC_FSYNC
-	if (dyn_fsync_active && !dyn_fsync_early_suspend)
+	if (likely(dyn_fsync_active && !early_suspend_active))
 		return 0;
+	else
 	#endif
 
 	return sys_sync_file_range(fd, offset, nbytes, flags);
