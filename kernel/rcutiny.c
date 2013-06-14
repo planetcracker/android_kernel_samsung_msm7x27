@@ -54,11 +54,6 @@ static struct rcu_ctrlblk rcu_bh_ctrlblk = {
 	.curtail	= &rcu_bh_ctrlblk.rcucblist,
 };
 
-#ifdef CONFIG_DEBUG_LOCK_ALLOC
-int rcu_scheduler_active __read_mostly;
-EXPORT_SYMBOL_GPL(rcu_scheduler_active);
-#endif /* #ifdef CONFIG_DEBUG_LOCK_ALLOC */
-
 #ifdef CONFIG_NO_HZ
 
 static long rcu_dynticks_nesting = 1;
@@ -193,14 +188,19 @@ static void rcu_process_callbacks(struct softirq_action *unused)
  *
  * Cool, huh?  (Due to Josh Triplett.)
  *
- * But we want to make this a static inline later.  The cond_resched()
- * currently makes this problematic.
+ * But we want to make this a static inline later.
  */
 void synchronize_sched(void)
 {
 	cond_resched();
 }
 EXPORT_SYMBOL_GPL(synchronize_sched);
+
+void synchronize_rcu_bh(void)
+{
+	synchronize_sched();
+}
+EXPORT_SYMBOL_GPL(synchronize_rcu_bh);
 
 /*
  * Helper function for call_rcu() and call_rcu_bh().
@@ -245,13 +245,11 @@ void rcu_barrier(void)
 {
 	struct rcu_synchronize rcu;
 
-	init_rcu_head_on_stack(&rcu.head);
 	init_completion(&rcu.completion);
 	/* Will wake me after RCU finished. */
 	call_rcu(&rcu.head, wakeme_after_rcu);
 	/* Wait for it. */
 	wait_for_completion(&rcu.completion);
-	destroy_rcu_head_on_stack(&rcu.head);
 }
 EXPORT_SYMBOL_GPL(rcu_barrier);
 
@@ -259,13 +257,11 @@ void rcu_barrier_bh(void)
 {
 	struct rcu_synchronize rcu;
 
-	init_rcu_head_on_stack(&rcu.head);
 	init_completion(&rcu.completion);
 	/* Will wake me after RCU finished. */
 	call_rcu_bh(&rcu.head, wakeme_after_rcu);
 	/* Wait for it. */
 	wait_for_completion(&rcu.completion);
-	destroy_rcu_head_on_stack(&rcu.head);
 }
 EXPORT_SYMBOL_GPL(rcu_barrier_bh);
 
@@ -273,13 +269,11 @@ void rcu_barrier_sched(void)
 {
 	struct rcu_synchronize rcu;
 
-	init_rcu_head_on_stack(&rcu.head);
 	init_completion(&rcu.completion);
 	/* Will wake me after RCU finished. */
 	call_rcu_sched(&rcu.head, wakeme_after_rcu);
 	/* Wait for it. */
 	wait_for_completion(&rcu.completion);
-	destroy_rcu_head_on_stack(&rcu.head);
 }
 EXPORT_SYMBOL_GPL(rcu_barrier_sched);
 
@@ -287,5 +281,3 @@ void __init rcu_init(void)
 {
 	open_softirq(RCU_SOFTIRQ, rcu_process_callbacks);
 }
-
-#include "rcutiny_plugin.h"
