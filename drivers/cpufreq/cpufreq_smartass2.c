@@ -80,21 +80,21 @@ static unsigned long max_cpu_load;
 /*
  * CPU freq will be decreased if measured load < min_cpu_load;
  */
-#define DEFAULT_MIN_CPU_LOAD 25
+#define DEFAULT_MIN_CPU_LOAD 28
 static unsigned long min_cpu_load;
 
 /*
  * The minimum amount of time to spend at a frequency before we can ramp up.
  * Notice we ignore this when we are below the ideal frequency.
  */
-#define DEFAULT_UP_RATE_US 48000;
+#define DEFAULT_UP_RATE_US 49000;
 static unsigned long up_rate_us;
 
 /*
  * The minimum amount of time to spend at a frequency before we can ramp down.
  * Notice we ignore this when we are above the ideal frequency.
  */
-#define DEFAULT_DOWN_RATE_US 99000;
+#define DEFAULT_DOWN_RATE_US 87000;
 static unsigned long down_rate_us;
 
 /*
@@ -113,7 +113,7 @@ static unsigned int sample_rate_jiffies;
 /*
  * Boost enabled
  */
-#define DEFAULT_BOOST_ENABLED 0
+#define DEFAULT_BOOST_ENABLED 1
 static unsigned int boost_enabled;
 
 /*
@@ -728,7 +728,7 @@ static ssize_t store_boost_pulse(struct kobject *kobj, struct attribute *attr, c
 
 #define define_global_rw_attr(_name)		\
 static struct global_attr _name##_attr =	\
-	__ATTR(_name, 0644, show_##_name, store_##_name)
+	__ATTR(_name, 0666, show_##_name, store_##_name)
 
 define_global_rw_attr(debug_mask);
 define_global_rw_attr(up_rate_us);
