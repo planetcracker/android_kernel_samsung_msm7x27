@@ -51,11 +51,9 @@ static size_t lowmem_minfree[6] = {
 	3 * 1024,	/* 12MB */
 	4 * 1024,	/* 16MB */
 	10 * 1024,	/* 40MB */
-	11 * 1024,	/* 44MB */
-	13 * 1024,	/* 52MB */
 	16 * 1024,	/* 64MB */
 };
-static int lowmem_minfree_size = 6;
+static int lowmem_minfree_size = 4;
 
 static struct task_struct *lowmem_deathpending;
 static unsigned long lowmem_deathpending_timeout;
