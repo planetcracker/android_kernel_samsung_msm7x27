@@ -622,7 +622,7 @@ static struct mmc_blk_data *mmc_blk_alloc(struct mmc_card *card)
 static const struct mmc_fixup blk_fixups[] =
 {
   END_FIXUP
-}
+};
 
 static int mmc_blk_probe(struct mmc_card *card)
 {
