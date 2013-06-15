@@ -741,7 +741,7 @@ static ssize_t store_boost_pulse(struct kobject *kobj, struct attribute *attr, c
 	res = strict_strtoul(buf, 0, &input);
 	if (res < 0)
 		return -EINVAL;
-	boost_pulse_time = c(ktime_get());
+	boost_pulse_time = ktime_to_us(ktime_get());
 	if (input > MAX_BOOST_PULSE)
 		boost_pulse = MAX_BOOST_PULSE;
 	else if (input <= 1)
