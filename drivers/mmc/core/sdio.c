@@ -375,18 +375,6 @@ static int mmc_sdio_init_card(struct mmc_host *host, u32 ocr,
 	}
 	mmc_fixup_device(card);
 
-	if (card->type == MMC_TYPE_SD_COMBO) {
-		err = mmc_sd_setup_card(host, card, oldcard != NULL);
-		/* handle as SDIO-only card if memory init failed */
-		if (err) {
-			mmc_go_idle(host);
-			if (mmc_host_is_spi(host))
-				/* should not fail, as it worked previously */
-				mmc_spi_set_crc(host, use_spi_crc);
-			card->type = MMC_TYPE_SDIO;
-		} else
-			card->dev.type = &sd_type;
-	}
 
 	/*
 	 * Switch to high-speed (if supported).
