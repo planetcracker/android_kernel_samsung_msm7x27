@@ -83,7 +83,7 @@ static unsigned long max_cpu_load;
 /*
  * CPU freq will be decreased if measured load < min_cpu_load;
  */
-#define DEFAULT_MIN_CPU_LOAD 70
+#define DEFAULT_MIN_CPU_LOAD 60
 static unsigned long min_cpu_load;
 
 /*
@@ -199,7 +199,7 @@ inline static void smartass_update_min_max(struct smartass_info_s *this_smartass
 	}
 }
 
-inline static void smartass_update_min_max(struct smartass_info_s *this_smartass, struct cpufreq_policy *policy) {
+inline static void smartass_update_boost(struct smartass_info_s *this_smartass, struct cpufreq_policy *policy) {
 this_smartass->boost_speed = //boost_freq; but make sure it obeys the policy min/max
 			policy->min < boost_freq ?
 			(boost_freq < policy->max ? boost_freq : policy->max) : policy->min;
@@ -608,6 +608,23 @@ static ssize_t store_awake_ideal_freq(struct kobject *kobj, struct attribute *at
 		if (!suspended)
 			smartass_update_min_max_allcpus();
 	}
+	return count;
+}
+
+static ssize_t show_boost_freq(struct kobject *kobj, struct attribute *attr, char *buf)
+{
+	return sprintf(buf, "%u\n", boost_freq);
+}
+
+static ssize_t store_boost_freq(struct kobject *kobj, struct attribute *attr, const char *buf, size_t count)
+{
+	ssize_t res;
+	unsigned long input;
+	res = strict_strtoul(buf, 0, &input);
+	if (res < 0)
+		return -EINVAL;
+	if (input >= 0) 
+		boost_freq = input;
 	return count;
 }
 
