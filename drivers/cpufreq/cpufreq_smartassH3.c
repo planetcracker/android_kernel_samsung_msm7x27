@@ -46,6 +46,9 @@
 #define DEFAULT_AWAKE_IDEAL_FREQ 320000
 static unsigned int awake_ideal_freq;
 
+#define DEFAULT_BOOST_FREQ 480000
+static unsigned int boost_freq;
+
 /*
  * The "ideal" frequency to use when suspended.
  * When set to 0, the governor will not track the suspended state (meaning
@@ -142,6 +145,7 @@ struct smartass_info_s {
 	int ramp_dir;
 	unsigned int enable;
 	int ideal_speed;
+	int boost_speed;
 };
 static DEFINE_PER_CPU(struct smartass_info_s, smartass_info);
 
@@ -193,6 +197,12 @@ inline static void smartass_update_min_max(struct smartass_info_s *this_smartass
 			policy->min < awake_ideal_freq ?
 			(awake_ideal_freq < policy->max ? awake_ideal_freq : policy->max) : policy->min;
 	}
+}
+
+inline static void smartass_update_min_max(struct smartass_info_s *this_smartass, struct cpufreq_policy *policy) {
+this_smartass->boost_speed = //boost_freq; but make sure it obeys the policy min/max
+			policy->min < boost_freq ?
+			(boost_freq < policy->max ? boost_freq : policy->max) : policy->min;
 }
 
 inline static void smartass_update_min_max_allcpus(void) {
@@ -412,9 +422,9 @@ static void cpufreq_smartass_freq_change_time_work(struct work_struct *work)
 			if (now <= boost_pulse_time + boost_pulse) {
 				// boost logic:
 				if (boost_enabled > 0 &&
-					old_freq < this_smartass->ideal_speed) {
+					old_freq < this_smartass->boost_speed) {
 					// Jump to ideal frequency
-					new_freq = this_smartass->ideal_speed;
+					new_freq = this_smartass->boost_speed;
 					relation = CPUFREQ_RELATION_H;
 					// Skip normal logic
 					boosted = 1;
@@ -743,6 +753,7 @@ define_global_rw_attr(max_cpu_load);
 define_global_rw_attr(min_cpu_load);
 define_global_rw_attr(boost_enabled);
 define_global_rw_attr(boost_pulse);
+define_global_rw_attr(boost_freq);
 
 static struct attribute * smartass_attributes[] = {
 	&debug_mask_attr.attr,
@@ -758,6 +769,7 @@ static struct attribute * smartass_attributes[] = {
 	&min_cpu_load_attr.attr,
 	&boost_enabled_attr.attr,
 	&boost_pulse_attr.attr,
+	&boost_freq_attr.attr,
 	NULL,
 };
 
@@ -917,6 +929,7 @@ static int __init cpufreq_smartass_init(void)
 	max_cpu_load = DEFAULT_MAX_CPU_LOAD;
 	min_cpu_load = DEFAULT_MIN_CPU_LOAD;
 	boost_enabled = DEFAULT_BOOST_ENABLED;
+	boost_freq = DEFAULT_BOOST_FREQ;
 	boost_pulse = 0;
 
 	spin_lock_init(&cpumask_lock);
