@@ -180,9 +180,19 @@ static inline void destroy_work_on_stack(struct work_struct *work) { }
 	clear_bit(WORK_STRUCT_PENDING, work_data_bits(work))
 
 enum {
+	WQ_NON_REENTRANT	= 1 << 0, /* guarantee non-reentrance */
+	WQ_UNBOUND		= 1 << 1, /* not bound to any cpu */
+	WQ_FREEZABLE		= 1 << 2, /* freeze during suspend */
 	WQ_MEM_RECLAIM		= 1 << 3, /* may be used for memory reclaim */
 	WQ_HIGHPRI		= 1 << 4, /* high priority */
+	WQ_CPU_INTENSIVE	= 1 << 5, /* cpu instensive workqueue */
+
+	WQ_DYING		= 1 << 6, /* internal: workqueue is dying */
 	WQ_RESCUER		= 1 << 7, /* internal: workqueue has rescuer */
+
+	WQ_MAX_ACTIVE		= 512,	  /* I like 512, better ideas? */
+	WQ_MAX_UNBOUND_PER_CPU	= 4,	  /* 4 * #cpus for unbound wq */
+	WQ_DFL_ACTIVE		= WQ_MAX_ACTIVE / 2,
 };
 
 
