@@ -77,13 +77,13 @@ static unsigned int ramp_down_step;
 /*
  * CPU freq will be increased if measured load > max_cpu_load;
  */
-#define DEFAULT_MAX_CPU_LOAD 85
+#define DEFAULT_MAX_CPU_LOAD 90
 static unsigned long max_cpu_load;
 
 /*
  * CPU freq will be decreased if measured load < min_cpu_load;
  */
-#define DEFAULT_MIN_CPU_LOAD 60
+#define DEFAULT_MIN_CPU_LOAD 65
 static unsigned long min_cpu_load;
 
 /*
@@ -741,7 +741,7 @@ static ssize_t store_boost_pulse(struct kobject *kobj, struct attribute *attr, c
 	res = strict_strtoul(buf, 0, &input);
 	if (res < 0)
 		return -EINVAL;
-	boost_pulse_time = ktime_to_us(ktime_get());
+	boost_pulse_time = c(ktime_get());
 	if (input > MAX_BOOST_PULSE)
 		boost_pulse = MAX_BOOST_PULSE;
 	else if (input <= 1)
