@@ -188,6 +188,7 @@ extern unsigned long long simple_strtoull(const char *,char **,unsigned int);
 extern long long simple_strtoll(const char *,char **,unsigned int);
 extern int strict_strtoul(const char *, unsigned int, unsigned long *);
 extern int strict_strtol(const char *, unsigned int, long *);
+extern int kstrtou16(const char *s, unsigned int base, u16 *res);
 extern int strict_strtoull(const char *, unsigned int, unsigned long long *);
 extern int strict_strtoll(const char *, unsigned int, long long *);
 extern int sprintf(char * buf, const char * fmt, ...)

@@ -37,7 +37,7 @@ config ZRAM_FOR_ANDROID
 choice ZRAM_COMPRESS
 	prompt "compression method"
 	depends on ZRAM
-	default ZRAM_LZO
+	default ZRAM_SNAPPY
 	help
 	  Select the compression method used by zram.
 	  LZO is the default. Snappy compresses a bit worse (around ~2%) but

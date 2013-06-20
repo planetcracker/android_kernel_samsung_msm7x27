@@ -134,6 +134,10 @@ static void default_idle(void)
 void (*pm_idle)(void) = default_idle;
 EXPORT_SYMBOL(pm_idle);
 
+#ifdef CONFIG_ZRAM_FOR_ANDROID
+extern void could_cswap(void);
+#endif /* CONFIG_ZRAM_FOR_ANDROID */
+
 /*
  * The idle thread, has rather strange semantics for calling pm_idle,
  * but this is what x86 does and we need to do the same, so that
@@ -149,6 +153,9 @@ void cpu_idle(void)
 		tick_nohz_stop_sched_tick(1);
 		leds_event(led_idle_start);
 		while (!need_resched()) {
+/*#ifdef CONFIG_ZRAM_FOR_ANDROID
+      could_cswap();
+#endif // CONFIG_ZRAM_FOR_ANDROID */
 #ifdef CONFIG_HOTPLUG_CPU
 			if (cpu_is_offline(smp_processor_id()))
 				cpu_die();
