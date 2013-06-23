@@ -157,5 +157,7 @@ source "drivers/staging/snappy/Kconfig"
 
 source "drivers/staging/zsmalloc/Kconfig"
 
+source "drivers/staging/lz4/Kconfig"
+
 endif # !STAGING_EXCLUDE_BUILD
 endif # STAGING

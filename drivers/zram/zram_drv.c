@@ -47,9 +47,29 @@
 	lzo1x_decompress_safe(s, sl, d, dl)
 #elif defined(CONFIG_ZRAM_LZ4)
 #include "../staging/lz4/lz4.h"
-#define WMSIZE		LZ4_COMPRESSBOUND
-#define COMPRESS(s, d, wm)	\
-	int LZ4_compress(s, d, wm)
+
+#define WMSIZE		LZ4_MEM_COMPRESS
+static int
+lz4_compress_(
+	const unsigned char *src,
+	unsigned char *dst,
+	size_t src_len)
+{
+	return 0;
+}
+static int
+lz4_decompress_safe_(
+	const unsigned char *src,
+	unsigned char *dst,
+	size_t src_len,
+	void *workmem)
+{
+	return 0;
+}
+#define COMPRESS(s, d, sl)	\
+	lz4_compress_(s, d, sl)
+#define DECOMPRESS(s, d, sl, wm)	\
+	lz4_decompress_safe_(s, d, sl, wm)
 #elif defined(CONFIG_ZRAM_SNAPPY)
 #include "../staging/snappy/csnappy.h" /* if built in drivers/staging */
 #define WMSIZE_ORDER	((PAGE_SHIFT > 14) ? (15) : (PAGE_SHIFT+1))
@@ -279,7 +299,6 @@ static int zram_read(struct zram *zram, struct bio *bio)
 
 	bio_for_each_segment(bvec, bio, i) {
 		int ret;
-		size_t clen;
 		struct page *page;
 		struct zobj_header *zheader;
 		unsigned char *user_mem, *cmem;
@@ -309,15 +328,13 @@ static int zram_read(struct zram *zram, struct bio *bio)
 		}
 
 		user_mem = kmap_atomic(page, KM_USER0);
-		clen = PAGE_SIZE;
 
 		cmem = kmap_atomic(zram->table[index].page, KM_USER1) +
 				zram->table[index].offset;
 
 		ret = DECOMPRESS(
 			cmem + sizeof(*zheader),
-			xv_get_object_size(cmem) - sizeof(*zheader),
-			user_mem, &clen);
+			user_mem, xv_get_object_size(cmem) - sizeof(*zheader), zram->compress_workmem);
 
 
 		kunmap_atomic(user_mem, KM_USER0);
@@ -389,8 +406,7 @@ static int zram_write(struct zram *zram, struct bio *bio)
 			continue;
 		}
 
-		COMPRESS(user_mem, PAGE_SIZE, src, &clen,
-			zram->compress_workmem);
+		COMPRESS(user_mem, src, PAGE_SIZE);
 		ret = 0;
 
 		kunmap_atomic(user_mem, KM_USER0);
