@@ -45,9 +45,9 @@
 
 /* Phase configurables */
 #define MAX_IDLE_COUNTER			160
-#define PHASE_2_PERCENT				65
+#define PHASE_2_PERCENT				75
 #define PHASE_3_PERCENT				90
-#define SEMI_BUSY_THRESHOLD			24
+#define SEMI_BUSY_THRESHOLD			14
 #define SEMI_BUSY_CLR_THRESHOLD			6
 #define BUSY_THRESHOLD				130
 #define BUSY_CLR_THRESHOLD			100
