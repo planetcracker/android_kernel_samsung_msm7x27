@@ -47,29 +47,23 @@
 	lzo1x_decompress_safe(s, sl, d, dl)
 #elif defined(CONFIG_ZRAM_LZ4)
 #include "../staging/lz4/lz4.h"
-
 #define WMSIZE		LZ4_MEM_COMPRESS
 static int
-lz4_compress_(
+lz4_decompress_fast_(
 	const unsigned char *src,
-	unsigned char *dst,
-	size_t src_len)
-{
-	return 0;
-}
-static int
-lz4_decompress_safe_(
-	const unsigned char *src,
-	unsigned char *dst,
 	size_t src_len,
-	void *workmem)
+	unsigned char *dst,
+	size_t *dst_len)
 {
-	return 0;
+	uint32_t dst_len_ = (uint32_t)*dst_len;
+	int ret = lz4_decompress_unknownoutputsize(src, src_len, dst, &dst_len_);
+	*dst_len = (size_t)dst_len_;
+	return ret;
 }
-#define COMPRESS(s, d, sl)	\
-	lz4_compress_(s, d, sl)
-#define DECOMPRESS(s, d, sl, wm)	\
-	lz4_decompress_safe_(s, d, sl, wm)
+#define COMPRESS(s, sl, d, dl, wm)	\
+	lz4_compress(s, sl, d, dl, wm)
+#define DECOMPRESS(s, sl, d, dl)	\
+	lz4_decompress_fast_(s, sl, d, dl)
 #elif defined(CONFIG_ZRAM_SNAPPY)
 #include "../staging/snappy/csnappy.h" /* if built in drivers/staging */
 #define WMSIZE_ORDER	((PAGE_SHIFT > 14) ? (15) : (PAGE_SHIFT+1))
@@ -299,6 +293,7 @@ static int zram_read(struct zram *zram, struct bio *bio)
 
 	bio_for_each_segment(bvec, bio, i) {
 		int ret;
+		size_t clen;
 		struct page *page;
 		struct zobj_header *zheader;
 		unsigned char *user_mem, *cmem;
@@ -328,13 +323,15 @@ static int zram_read(struct zram *zram, struct bio *bio)
 		}
 
 		user_mem = kmap_atomic(page, KM_USER0);
+		clen = PAGE_SIZE;
 
 		cmem = kmap_atomic(zram->table[index].page, KM_USER1) +
 				zram->table[index].offset;
 
-		ret = DECOMPRESS(
+		ret = lz4_decompress_fast_(
 			cmem + sizeof(*zheader),
-			user_mem, xv_get_object_size(cmem) - sizeof(*zheader), zram->compress_workmem);
+			xv_get_object_size(cmem) - sizeof(*zheader),
+			user_mem, &clen);
 
 
 		kunmap_atomic(user_mem, KM_USER0);
@@ -406,7 +403,8 @@ static int zram_write(struct zram *zram, struct bio *bio)
 			continue;
 		}
 
-		COMPRESS(user_mem, src, PAGE_SIZE);
+		lz4_compress(user_mem, PAGE_SIZE, src, &clen,
+			zram->compress_workmem);
 		ret = 0;
 
 		kunmap_atomic(user_mem, KM_USER0);

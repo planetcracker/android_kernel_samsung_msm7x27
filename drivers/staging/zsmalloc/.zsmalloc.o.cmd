@@ -1,1 +1,0 @@
-cmd_drivers/staging/zsmalloc/zsmalloc.o := /home/alin/android/kernel/toolchains/arm-eabi-linaro-4.6.2/bin/arm-eabi-ld -EL    -r -o drivers/staging/zsmalloc/zsmalloc.o drivers/staging/zsmalloc/zsmalloc-main.o 
