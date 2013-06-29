@@ -391,7 +391,7 @@ static struct elevator_type iosched_sioplus = {
 		.elevator_dispatch_fn		= sioplus_dispatch_requests,
 		.elevator_add_req_fn		= sioplus_add_request,
 #if LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,38)
-		.elevator_queue_empty_fn	= sio_queue_empty,
+		.elevator_queue_empty_fn	= sioplus_queue_empty,
 #endif
 		.elevator_former_req_fn		= sioplus_former_request,
 		.elevator_latter_req_fn		= sioplus_latter_request,

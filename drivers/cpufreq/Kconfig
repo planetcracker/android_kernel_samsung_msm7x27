@@ -187,6 +187,13 @@ config CPU_FREQ_DEFAULT_GOV_LAGFREE
           governor. If unsure have a look at the help section of the
           driver. Fallback governor will be the performance governor.
 
+config CPU_FREQ_DEFAULT_GOV_WHEATLEY
+  bool "wheatley"
+  select CPU_FREQ_GOV_WHEATLEY
+  select CPU_FREQ_GOV_PERFORMANCE
+  help
+    Use the CPUFreq governor 'wheatley' as default.
+
 config CPU_FREQ_DEFAULT_GOV_ONDEMANDX
   	bool "ondemandx"
   	select CPU_FREQ_GOV_ONDEMANDX
@@ -300,6 +307,8 @@ config CPU_FREQ_GOV_CONSERVATIVE
 
 	  If in doubt, say N.
 
+
+
 config CPU_FREQ_GOV_SMARTASS2
 	tristate "'smartassV2' cpufreq governor"
 	depends on CPU_FREQ
@@ -395,6 +404,10 @@ config CPU_FREQ_GOV_SAVAGEDZEN
 	help
 	   'Savaged-Zen' - a "smartass" based governor
 	   If in doubt, say N.
+
+config CPU_FREQ_GOV_WHEATLEY
+  tristate "'wheatley' cpufreq governor"
+  depends on CPU_FREQ
 
 config CPU_FREQ_GOV_SCARY
 	tristate "'scary' cpufreq governor"
