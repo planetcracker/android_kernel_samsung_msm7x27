@@ -30,8 +30,8 @@
  * It helps to keep variable names smaller, simpler
  */
 
-#define DEF_FREQUENCY_DOWN_DIFFERENTIAL		(8)
-#define DEF_FREQUENCY_UP_THRESHOLD		(92)
+#define DEF_FREQUENCY_DOWN_DIFFERENTIAL		(7)
+#define DEF_FREQUENCY_UP_THRESHOLD		(94)
 #define DEF_SAMPLING_DOWN_FACTOR		(1)
 #define MAX_SAMPLING_DOWN_FACTOR		(100000)
 #define MICRO_FREQUENCY_DOWN_DIFFERENTIAL	(2)
@@ -59,6 +59,9 @@ static unsigned int min_sampling_rate, num_misses;
 #define LATENCY_MULTIPLIER			(1000)
 #define MIN_LATENCY_MULTIPLIER			(100)
 #define TRANSITION_LATENCY_LIMIT		(10 * 1000 * 1000)
+
+#define DEFAULT_IO_IS_BUSY 1
+static bool io_is_busy;
 
 static void do_dbs_timer(struct work_struct *work);
 static int cpufreq_governor_dbs(struct cpufreq_policy *policy,
@@ -282,6 +285,12 @@ static ssize_t store_sampling_rate(struct kobject *a, struct attribute *b,
 	return -EINVAL;
     dbs_tuners_ins.sampling_rate = max(input, min_sampling_rate);
     return count;
+}
+
+static ssize_t show_io_is_busy(struct kobject *kobj,
+      struct attribute *attr, char *buf)
+{
+  return sprintf(buf, "%u\n", io_is_busy);
 }
 
 static ssize_t store_io_is_busy(struct kobject *a, struct attribute *b,
@@ -816,6 +825,7 @@ static int __init cpufreq_gov_dbs_init(void)
 	dbs_tuners_ins.up_threshold = MICRO_FREQUENCY_UP_THRESHOLD;
 	dbs_tuners_ins.down_differential =
 	    MICRO_FREQUENCY_DOWN_DIFFERENTIAL;
+	io_is_busy = DEFAULT_IO_IS_BUSY;
 	/*
 	 * In no_hz/micro accounting case we set the minimum frequency
 	 * not depending on HZ, but fixed (very low). The deferred
