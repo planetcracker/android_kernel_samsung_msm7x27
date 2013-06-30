@@ -524,14 +524,12 @@ config CGROUP_FREEZER
 	  cgroup.
 
 config CGROUP_TIMER_SLACK
-        tristate "Timer slack cgroup subsystem"
-        help
-          Provides a way of tasks grouping by timer slack value.
-          Introduces per cgroup timer slack value which will override
-          the default timer slack value once a task is attached to a
-          cgroup.
-          It's useful in mobile devices where certain background apps
-          are attached to a cgroup and combined wakeups are desired.
+  bool "Timer slack cgroup controller"
+  help
+    Provides a way to set minimal timer slack value for tasks in
+    a cgroup.
+    It's useful in mobile devices where certain background apps
+    are attached to a cgroup and combined wakeups are desired.
 
 config CGROUP_DEVICE
 	bool "Device controller for cgroups"
