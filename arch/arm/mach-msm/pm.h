@@ -20,6 +20,7 @@
 
 #include <linux/types.h>
 #include <linux/cpuidle.h>
+#include <linux/suspend.h>
 
 #ifdef CONFIG_HOTPLUG_CPU
 extern int pen_release;
@@ -54,7 +55,7 @@ struct msm_pm_platform_data {
 void msm_pm_set_platform_data(struct msm_pm_platform_data *data, int count);
 void arch_idle(void);
 int msm_pm_idle_prepare(struct cpuidle_device *dev);
-int msm_pm_idle_enter(enum msm_pm_sleep_mode sleep_mode);
+int msm_pm_idle_enter(suspend_state_t state);
 
 #ifdef CONFIG_HOTPLUG_CPU
 int msm_pm_platform_secondary_init(unsigned int cpu);

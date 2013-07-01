@@ -93,6 +93,7 @@ EXPORT_SYMBOL(msm_cpuidle_unregister_notifier);
 static int msm_cpuidle_enter(
 	struct cpuidle_device *dev, struct cpuidle_state *state)
 {
+	int ret;
 #ifdef CONFIG_MSM_SLEEP_STATS
 	struct atomic_notifier_head *head =
 			&__get_cpu_var(msm_cpuidle_notifiers);
@@ -105,7 +106,7 @@ static int msm_cpuidle_enter(
 	atomic_notifier_call_chain(head, MSM_CPUIDLE_STATE_ENTER, NULL);
 #endif
 
-	arch_idle();
+	ret = msm_pm_idle_enter((enum msm_pm_sleep_mode) (state->driver_data));
 
 #ifdef CONFIG_MSM_SLEEP_STATS
 	post_idle(dev->cpu, ret);
@@ -114,7 +115,7 @@ static int msm_cpuidle_enter(
 
 	local_irq_enable();
 
-	return 0;
+	return ret;
 }
 
 void __init msm_cpuidle_set_states(struct msm_cpuidle_state *states,
