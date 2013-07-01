@@ -20,7 +20,7 @@
 /* 
  * Timeout for stopping processes
  */
-unsigned int __read_mostly freeze_timeout_msecs = 2 * MSEC_PER_SEC;
+#define TIMEOUT	(20 * HZ)
 
 static inline int freezeable(struct task_struct * p)
 {
@@ -44,7 +44,7 @@ static int try_to_freeze_tasks(bool sig_only)
 
 	do_gettimeofday(&start);
 
-	end_time = jiffies + msecs_to_jiffies(freeze_timeout_msecs);
+	end_time = jiffies + TIMEOUT;
 	while (true) {
 		todo = 0;
 		read_lock(&tasklist_lock);
