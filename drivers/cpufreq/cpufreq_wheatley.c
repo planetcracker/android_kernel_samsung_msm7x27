@@ -25,6 +25,10 @@
 #include <linux/sched.h>
 #include <linux/cpuidle.h>
 
+#ifdef CONFIG_HAS_EARLYSUSPEND
+#include <linux/earlysuspend.h>
+#endif
+
 /*
  * dbs is used in this file as a shortform for demandbased switching
  * It helps to keep variable names smaller, simpler
@@ -33,6 +37,7 @@
 #define DEF_FREQUENCY_DOWN_DIFFERENTIAL		(15)
 #define DEF_FREQUENCY_UP_THRESHOLD		(96)
 #define DEF_SAMPLING_DOWN_FACTOR		(1)
+#define DEF_SAMPLE_RATE				(10000)
 #define MAX_SAMPLING_DOWN_FACTOR		(100000)
 #define MICRO_FREQUENCY_DOWN_DIFFERENTIAL	(3)
 #define MICRO_FREQUENCY_UP_THRESHOLD		(99)
@@ -58,7 +63,7 @@ u64 whfreq_boosted_time;
  */
 #define MIN_SAMPLING_RATE_RATIO			(2)
 
-static unsigned int min_sampling_rate, num_misses;
+static unsigned int min_sampling_rate, num_misses, current_sampling_rate;
 
 #define LATENCY_MULTIPLIER			(1000)
 #define MIN_LATENCY_MULTIPLIER			(100)
@@ -100,6 +105,7 @@ struct cpu_dbs_info_s {
     unsigned int sample_type:1;
     unsigned long long prev_idletime;
     unsigned long long prev_idleusage;
+
     /*
      * percpu mutex that serializes governor limit change with
      * do_dbs_timer invocation. We do not want do_dbs_timer to run
@@ -118,6 +124,8 @@ static unsigned int dbs_enable;	/* number of CPUs using this policy */
  */
 static DEFINE_MUTEX(dbs_mutex);
 
+static struct workqueue_struct	*kwheatley_wq;
+
 static struct dbs_tuners {
     unsigned int sampling_rate;
     unsigned int up_threshold;
@@ -131,6 +139,10 @@ static struct dbs_tuners {
     unsigned int boosted;
     unsigned int whfreq_boost_time;
     unsigned int boostfreq;
+    unsigned int min_timeinstate;
+#ifdef CONFIG_HAS_EARLYSUSPEND
+    bool screenoff_maxfreq;
+#endif
 } dbs_tuners_ins = {
     .up_threshold = DEF_FREQUENCY_UP_THRESHOLD,
     .sampling_down_factor = DEF_SAMPLING_DOWN_FACTOR,
@@ -143,7 +155,35 @@ static struct dbs_tuners {
     .allowed_misses = DEF_ALLOWED_MISSES,
     .whfreq_boost_time = DEFAULT_FREQ_BOOST_TIME,
     .boostfreq = 0,
+#ifdef CONFIG_HAS_EARLYSUSPEND
+    .screenoff_maxfreq = true,
+#endif
 };
+
+#ifdef CONFIG_HAS_EARLYSUSPEND
+static bool suspended = false;
+
+static void wheatley_early_suspend(struct early_suspend *handler)
+{
+    suspended = true;
+
+    return;
+}
+
+static void wheatley_late_resume(struct early_suspend *handler)
+{
+    suspended = false;
+
+    return;
+}
+
+static struct early_suspend wheatley_suspend = {
+	.suspend = wheatley_early_suspend,
+	.resume = wheatley_late_resume,
+	.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN + 1,
+};
+#endif
+
 
 static inline cputime64_t get_cpu_idle_time_jiffy(unsigned int cpu,
 						  cputime64_t *wall)
@@ -252,6 +292,14 @@ static void wheatley_powersave_bias_init_cpu(int cpu)
     dbs_info->freq_lo = 0;
 }
 
+static ssize_t show_sampling_rate_max(struct kobject *kobj,
+				      struct attribute *attr, char *buf)
+{
+    printk_once(KERN_INFO "CPUFREQ: wheatley sampling_rate_max "
+		"sysfs file is deprecated - used by: %s\n", current->comm);
+    return sprintf(buf, "%u\n", -1U);
+}
+
 static void wheatley_powersave_bias_init(void)
 {
     int i;
@@ -268,6 +316,7 @@ static ssize_t show_sampling_rate_min(struct kobject *kobj,
     return sprintf(buf, "%u\n", min_sampling_rate);
 }
 
+define_one_global_ro(sampling_rate_max);
 define_one_global_ro(sampling_rate_min);
 
 /* cpufreq_wheatley Governor Tunables */
@@ -287,6 +336,10 @@ show_one(target_residency, target_residency);
 show_one(allowed_misses, allowed_misses);
 show_one(boostpulse, boosted);
 show_one(boostfreq, boostfreq);
+show_one(min_timeinstate, min_timeinstate);
+#ifdef CONFIG_HAS_EARLYSUSPEND
+show_one(screenoff_maxfreq, screenoff_maxfreq);
+#endif
 
 
 static ssize_t store_boostpulse(struct kobject *kobj, struct attribute *attr,
@@ -329,7 +382,12 @@ static ssize_t store_sampling_rate(struct kobject *a, struct attribute *b,
     ret = sscanf(buf, "%u", &input);
     if (ret != 1)
 	return -EINVAL;
+
+    mutex_lock(&dbs_mutex);
     dbs_tuners_ins.sampling_rate = max(input, min_sampling_rate);
+    dbs_tuners_ins.min_timeinstate = 3 * dbs_tuners_ins.sampling_rate / 2;
+    mutex_unlock(&dbs_mutex);
+
     return count;
 }
 
@@ -342,7 +400,11 @@ static ssize_t store_io_is_busy(struct kobject *a, struct attribute *b,
     ret = sscanf(buf, "%u", &input);
     if (ret != 1)
 	return -EINVAL;
-    dbs_tuners_ins.io_is_busy = input;
+
+    mutex_lock(&dbs_mutex);
+    dbs_tuners_ins.io_is_busy = !!input;
+    mutex_unlock(&dbs_mutex);
+
     return count;
 }
 
@@ -357,9 +419,15 @@ static ssize_t store_up_threshold(struct kobject *a, struct attribute *b,
 	input < MIN_FREQUENCY_UP_THRESHOLD) {
 	return -EINVAL;
     }
+
+    mutex_lock(&dbs_mutex);
     dbs_tuners_ins.up_threshold = input;
+    mutex_unlock(&dbs_mutex);
+
     return count;
 }
+
+
 
 static ssize_t store_sampling_down_factor(struct kobject *a,
 					  struct attribute *b, const char *buf, size_t count)
@@ -380,6 +448,23 @@ static ssize_t store_sampling_down_factor(struct kobject *a,
     }
     return count;
 }
+
+static ssize_t store_min_timeinstate(struct kobject *a, struct attribute *b,
+				     const char *buf, size_t count)
+{
+    unsigned int input;
+    int ret;
+    ret = sscanf(buf, "%u", &input);
+    if (ret != 1)
+	return -EINVAL;
+
+    mutex_lock(&dbs_mutex);
+    dbs_tuners_ins.min_timeinstate = max(input, min_sampling_rate);
+    mutex_unlock(&dbs_mutex);
+
+    return count;
+}
+
 
 static ssize_t store_ignore_nice_load(struct kobject *a, struct attribute *b,
 				      const char *buf, size_t count)
@@ -460,6 +545,24 @@ static ssize_t store_allowed_misses(struct kobject *a, struct attribute *b,
     return count;
 }
 
+#ifdef CONFIG_HAS_EARLYSUSPEND
+static ssize_t store_screenoff_maxfreq(struct kobject *a, struct attribute *b,
+                                 const char *buf, size_t count)
+{
+    unsigned int input;
+    int ret;
+    ret = sscanf(buf, "%u", &input);
+    if (ret != 1 || input > 1)
+       return -EINVAL;
+
+    mutex_lock(&dbs_mutex);
+    dbs_tuners_ins.screenoff_maxfreq = input;
+    mutex_unlock(&dbs_mutex);
+
+    return count;
+}
+#endif
+
 define_one_global_rw(sampling_rate);
 define_one_global_rw(io_is_busy);
 define_one_global_rw(up_threshold);
@@ -470,8 +573,13 @@ define_one_global_rw(target_residency);
 define_one_global_rw(allowed_misses);
 define_one_global_rw(boostpulse);
 define_one_global_rw(boostfreq);
+define_one_global_rw(min_timeinstate);
+#ifdef CONFIG_HAS_EARLYSUSPEND
+define_one_global_rw(screenoff_maxfreq);
+#endif
 
 static struct attribute *dbs_attributes[] = {
+    &sampling_rate_max.attr,
     &sampling_rate_min.attr,
     &sampling_rate.attr,
     &up_threshold.attr,
@@ -483,6 +591,10 @@ static struct attribute *dbs_attributes[] = {
     &allowed_misses.attr,
     &boostpulse.attr,
     &boostfreq.attr,
+    &min_timeinstate.attr,
+#ifdef CONFIG_HAS_EARLYSUSPEND
+    &screenoff_maxfreq.attr,
+#endif
     NULL
 };
 
@@ -517,6 +629,8 @@ static void dbs_check_cpu(struct cpu_dbs_info_s *this_dbs_info)
     this_dbs_info->freq_lo = 0;
     policy = this_dbs_info->cur_policy;
 
+    current_sampling_rate = dbs_tuners_ins.sampling_rate;
+
 /* Only core0 controls the boost */
 	if (dbs_tuners_ins.boosted && policy->cpu == 0) {
 		if (ktime_to_us(ktime_get()) - whfreq_boosted_time >=
@@ -528,6 +642,20 @@ static void dbs_check_cpu(struct cpu_dbs_info_s *this_dbs_info)
 		boostfreq = dbs_tuners_ins.boostfreq;
 	else
 		boostfreq = policy->max;
+
+#ifdef CONFIG_HAS_EARLYSUSPEND
+    if (suspended && dbs_tuners_ins.screenoff_maxfreq) {
+	/* if we are already at full speed then break out early */
+	    if (policy->cur == policy->max)
+		return;
+
+	    __cpufreq_driver_target(policy, policy->max,
+				    CPUFREQ_RELATION_H);
+
+	current_sampling_rate = dbs_tuners_ins.min_timeinstate;
+	return;
+    }
+#endif
 
     /*
      * Every sampling_rate, we calculate the relative load (percentage of 
@@ -655,7 +783,9 @@ static void dbs_check_cpu(struct cpu_dbs_info_s *this_dbs_info)
 	if (policy->cur < policy->max)
 	    this_dbs_info->rate_mult =
 		dbs_tuners_ins.sampling_down_factor;
-	dbs_freq_increase(policy, policy->max);
+	    __cpufreq_driver_target(policy, policy->max,
+				    CPUFREQ_RELATION_H);
+	current_sampling_rate = dbs_tuners_ins.min_timeinstate;
 	return;
     }
 
@@ -704,6 +834,7 @@ static void dbs_check_cpu(struct cpu_dbs_info_s *this_dbs_info)
 	    __cpufreq_driver_target(policy, freq,
 				    CPUFREQ_RELATION_L);
 	}
+	current_sampling_rate = dbs_tuners_ins.min_timeinstate;
     }
 }
 
@@ -742,21 +873,20 @@ static void do_dbs_timer(struct work_struct *work)
 				dbs_info->freq_lo, CPUFREQ_RELATION_H);
 	delay = dbs_info->freq_lo_jiffies;
     }
-    schedule_delayed_work_on(cpu, &dbs_info->work, delay);
+    queue_delayed_work_on(cpu, kwheatley_wq, &dbs_info->work, delay);
     mutex_unlock(&dbs_info->timer_mutex);
 }
 
 static inline void dbs_timer_init(struct cpu_dbs_info_s *dbs_info)
 {
     /* We want all CPUs to do sampling nearly on same jiffy */
-    int delay = usecs_to_jiffies(dbs_tuners_ins.sampling_rate);
-
-    if (num_online_cpus() > 1)
-	delay -= jiffies % delay;
+    int delay = usecs_to_jiffies(current_sampling_rate);
+    delay -= jiffies % delay;
 
     dbs_info->sample_type = DBS_NORMAL_SAMPLE;
     INIT_DELAYED_WORK_DEFERRABLE(&dbs_info->work, do_dbs_timer);
-    schedule_delayed_work_on(dbs_info->cpu, &dbs_info->work, delay);
+    queue_delayed_work_on(dbs_info->cpu, kwheatley_wq, &dbs_info->work,
+			  delay);
 }
 
 static inline void dbs_timer_exit(struct cpu_dbs_info_s *dbs_info)
@@ -829,9 +959,9 @@ static int cpufreq_governor_dbs(struct cpufreq_policy *policy,
 	    /* Bring kernel and HW constraints together */
 	    min_sampling_rate = max(min_sampling_rate,
 				    MIN_LATENCY_MULTIPLIER * latency);
-	    dbs_tuners_ins.sampling_rate =
-		max(min_sampling_rate,
-		    latency * LATENCY_MULTIPLIER);
+	    dbs_tuners_ins.sampling_rate = DEF_SAMPLE_RATE;
+	    current_sampling_rate = dbs_tuners_ins.sampling_rate;
+	    dbs_tuners_ins.min_timeinstate = 3 * current_sampling_rate / 2;
 	    dbs_tuners_ins.io_is_busy = DEFAULT_IO_IS_BUSY;
 	}
 	mutex_unlock(&dbs_mutex);
@@ -872,6 +1002,7 @@ static int __init cpufreq_gov_dbs_init(void)
     cputime64_t wall;
     u64 idle_time;
     int cpu = get_cpu();
+    int err;
 
     idle_time = get_cpu_idle_time_us(cpu, &wall);
     put_cpu();
@@ -892,12 +1023,26 @@ static int __init cpufreq_gov_dbs_init(void)
 	    MIN_SAMPLING_RATE_RATIO * jiffies_to_usecs(10);
     }
 
+    kwheatley_wq = create_workqueue("kwheatley");
+    if (!kwheatley_wq) {
+	printk(KERN_ERR "Creation of kwheatley failed\n");
+	return -EFAULT;
+    }
+    err = cpufreq_register_governor(&cpufreq_gov_wheatley);
+    if (err)
+	destroy_workqueue(kwheatley_wq);
+
+#ifdef CONFIG_HAS_EARLYSUSPEND
+    register_early_suspend(&wheatley_suspend);
+#endif
+
     return cpufreq_register_governor(&cpufreq_gov_wheatley);
 }
 
 static void __exit cpufreq_gov_dbs_exit(void)
 {
     cpufreq_unregister_governor(&cpufreq_gov_wheatley);
+    destroy_workqueue(kwheatley_wq);
 }
 
 
