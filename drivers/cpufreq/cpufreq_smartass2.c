@@ -43,7 +43,7 @@
  * towards the ideal frequency and slower after it has passed it. Similarly,
  * lowering the frequency towards the ideal frequency is faster than below it.
  */
-#define DEFAULT_AWAKE_IDEAL_FREQ 320000
+#define DEFAULT_AWAKE_IDEAL_FREQ 261440
 static unsigned int awake_ideal_freq;
 
 /*
@@ -52,7 +52,7 @@ static unsigned int awake_ideal_freq;
  * that practically when sleep_ideal_freq==0 the awake_ideal_freq is used
  * also when suspended).
  */
-#define DEFAULT_SLEEP_IDEAL_FREQ 122800
+#define DEFAULT_SLEEP_IDEAL_FREQ 66000
 static unsigned int sleep_ideal_freq;
 
 /*
@@ -120,7 +120,7 @@ static unsigned int boost_enabled;
  * Boost pulse
  */
 #define DEFAULT_BOOST_PULSE 500000
-#define MAX_BOOST_PULSE 5000000
+#define MAX_BOOST_PULSE 2000000
 static unsigned long boost_pulse;
 static u64 boost_pulse_time;
 
