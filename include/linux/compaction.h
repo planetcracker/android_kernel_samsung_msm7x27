@@ -11,6 +11,8 @@
 /* The full zone was compacted */
 #define COMPACT_COMPLETE	3
 
+struct node;
+
 #ifdef CONFIG_COMPACTION
 extern int sysctl_compact_memory;
 extern int sysctl_compaction_handler(struct ctl_table *table, int write,
