@@ -34,7 +34,6 @@
 #include <linux/slab.h>
 #include <linux/uaccess.h>
 #include <linux/vmalloc.h>
-#include <linux/uidgid.h>
 
 #include "binder.h"
 
@@ -49,7 +48,7 @@ static HLIST_HEAD(binder_dead_nodes);
 static struct dentry *binder_debugfs_dir_entry_root;
 static struct dentry *binder_debugfs_dir_entry_proc;
 static struct binder_node *binder_context_mgr_node;
-static kuid_t binder_context_mgr_uid = INVALID_UID;
+static uid_t binder_context_mgr_uid = -1;
 static int binder_last_id;
 static struct workqueue_struct *binder_deferred_workqueue;
 
@@ -358,20 +357,13 @@ struct binder_transaction {
 	unsigned int	flags;
 	long	priority;
 	long	saved_priority;
-	kuid_t	sender_euid;
+	uid_t	sender_euid;
 };
 
 static void
 binder_defer_work(struct binder_proc *proc, enum binder_deferred_state defer);
 
-<<<<<<< HEAD
-/*
- * copied from get_unused_fd_flags
- */
 int task_get_unused_fd_flags(struct binder_proc *proc, int flags)
-=======
-static int task_get_unused_fd_flags(struct binder_proc *proc, int flags)
->>>>>>> b87dc05... new helper: __alloc_fd()
 {
 	struct files_struct *files = proc->files;
 	unsigned long rlim_cur;
@@ -380,18 +372,8 @@ static int task_get_unused_fd_flags(struct binder_proc *proc, int flags)
 	if (files == NULL)
 		return -ESRCH;
 
-
 	if (!lock_task_sighand(proc->tsk, &irqs))
 		return -EMFILE;
-
-<<<<<<< HEAD
-	/* Sanity check */
-	if (fdt->fd[fd] != NULL) {
-		printk(KERN_WARNING "get_unused_fd: slot %d not NULL!\n", fd);
-		fdt->fd[fd] = NULL;
-	}
-=======
->>>>>>> b87dc05... new helper: __alloc_fd()
 
 	rlim_cur = task_rlimit(proc->tsk, RLIMIT_NOFILE);
 	unlock_task_sighand(proc->tsk, &irqs);
@@ -2452,7 +2434,7 @@ retry:
 		}
 		tr.code = t->code;
 		tr.flags = t->flags;
-		tr.sender_euid = from_kuid(current_user_ns(), t->sender_euid);
+		tr.sender_euid = t->sender_euid;
 
 		if (t->from) {
 			struct task_struct *sender = t->from->proc->tsk;
@@ -2758,13 +2740,13 @@ static long binder_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			ret = -EBUSY;
 			goto err;
 		}
-		if (uid_valid(binder_context_mgr_uid)) {
-			if (!uid_eq(binder_context_mgr_uid, current->cred->euid)) {
+		if (binder_context_mgr_uid != -1) {
+			if (binder_context_mgr_uid != current->cred->euid) {
 				binder_debug(BINDER_DEBUG_TOP_ERRORS,
 				       "binder: BINDER_SET_"
 				       "CONTEXT_MGR bad uid %d != %d\n",
-				       from_kuid(&init_user_ns, current->cred->euid),
-					from_kuid(&init_user_ns, binder_context_mgr_uid));
+				       current->cred->euid,
+				       binder_context_mgr_uid);
 				ret = -EPERM;
 				goto err;
 			}
