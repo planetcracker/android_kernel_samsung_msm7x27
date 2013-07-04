@@ -37,6 +37,7 @@ enum oom_constraint {
 
 extern unsigned int oom_badness(struct task_struct *p, struct mem_cgroup *mem,
 			const nodemask_t *nodemask, unsigned long totalpages);
+extern struct task_struct *find_lock_task_mm(struct task_struct *p);
 extern int try_set_zonelist_oom(struct zonelist *zonelist, gfp_t gfp_flags);
 extern void clear_zonelist_oom(struct zonelist *zonelist, gfp_t gfp_flags);
 
