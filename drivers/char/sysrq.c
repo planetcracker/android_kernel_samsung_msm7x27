@@ -307,7 +307,8 @@ static struct sysrq_key_op sysrq_ftrace_dump_op = {
 
 static void sysrq_handle_showmem(int key, struct tty_struct *tty)
 {
-	show_mem();
+	unsigned int filter = SHOW_MEM_FILTER_NODES;
+	show_mem(filter);
 }
 static struct sysrq_key_op sysrq_showmem_op = {
 	.handler	= sysrq_handle_showmem,

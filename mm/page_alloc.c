@@ -1973,6 +1973,7 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
 	unsigned long did_some_progress;
 	struct task_struct *p = current;
 	bool sync_migration = false;
+	unsigned int filter = SHOW_MEM_FILTER_NODES;
 
 	/*
 	 * In the slowpath, we sanity check order to avoid ever trying to
@@ -2092,6 +2093,7 @@ rebalance:
 	}
 
 nopage:
+	filter &= ~SHOW_MEM_FILTER_NODES;
 	if (!(gfp_mask & __GFP_NOWARN) && printk_ratelimit()) {
 		printk(KERN_WARNING "%s: page allocation failure."
 			" order:%d, mode:0x%x\n",

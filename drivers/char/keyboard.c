@@ -69,6 +69,7 @@ extern void ctrl_alt_del(void);
 #define KBD_DEFLOCK 0
 
 void compute_shiftstate(void);
+unsigned int filter = SHOW_MEM_FILTER_NODES;
 
 /*
  * Handler Tables.
@@ -583,7 +584,7 @@ static void fn_scroll_back(struct vc_data *vc)
 
 static void fn_show_mem(struct vc_data *vc)
 {
-	show_mem();
+	show_mem(filter);
 }
 
 static void fn_show_state(struct vc_data *vc)
