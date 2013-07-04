@@ -46,6 +46,9 @@
 #define MAX_KEYS	2
 #define MAX_USING_FINGER_NUM 2
 
+unsigned int touch_state_val = 0;
+EXPORT_SYMBOL(touch_state_val);
+
 static int prev_wdog_val = -1;
 static int i2c_error_cnt = 0;
 
@@ -189,6 +192,7 @@ void TSP_forced_release_forkey(void)
 		input_report_abs(ts_global->input_dev, ABS_MT_TOUCH_MAJOR, 0);
 		input_report_abs(ts_global->input_dev, ABS_MT_WIDTH_MAJOR, fingerInfo[i].z);
 		input_mt_sync(ts_global->input_dev);
+		touch_state_val = 0;
 
 		printk("[TSP] force release\n");
 		temp_value++;
@@ -230,6 +234,7 @@ static void synaptics_ts_work_func(struct work_struct *work)
 	fingerInfo[1].y = (buf[9] << 8) |buf[10];
 	fingerInfo[1].z = buf[11]/2;
 	fingerInfo[1].id = buf[6] & 0x0f;
+
 
 	/* check touch event */
 	for ( i= 0; i<MAX_USING_FINGER_NUM; i++ )
@@ -319,6 +324,7 @@ static void synaptics_ts_work_func(struct work_struct *work)
 		input_report_abs(ts->input_dev, ABS_MT_TOUCH_MAJOR, fingerInfo[i].status);
 		input_report_abs(ts->input_dev, ABS_MT_WIDTH_MAJOR, fingerInfo[i].z);
 		input_mt_sync(ts->input_dev);
+		touch_state_val = fingerInfo[i].status;
 
 		//printk("[TSP] [%d] %d (%d, %d,	%x)		%x\n", i, fingerInfo[i].id, fingerInfo[i].x, fingerInfo[i].y, fingerInfo[i].z, fingerInfo[i].status);		
 	}
