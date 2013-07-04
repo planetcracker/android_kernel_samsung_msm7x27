@@ -37,6 +37,7 @@
 #include <linux/rcupdate.h>
 #include <linux/profile.h>
 #include <linux/notifier.h>
+#include <linux/swap.h>
 #include <linux/compaction.h>
 
 #define SEC_ADJUST_LMK
@@ -79,7 +80,7 @@ static int lowmem_shrink(struct shrinker *s, int nr_to_scan, gfp_t gfp_mask)
 	int selected_tasksize = 0;
 	short selected_oom_score_adj;
 	int array_size = ARRAY_SIZE(lowmem_adj);
-	int other_free = global_page_state(NR_FREE_PAGES);
+	int other_free = global_page_state(NR_FREE_PAGES) - totalreserve_pages;
 #ifdef SEC_ADJUST_LMK
 	int other_file = global_page_state(NR_INACTIVE_FILE) +
 						global_page_state(NR_ACTIVE_FILE);
