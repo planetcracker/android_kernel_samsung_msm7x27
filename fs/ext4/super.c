@@ -41,7 +41,6 @@
 #include <linux/crc16.h>
 #include <linux/cleancache.h>
 #include <asm/uaccess.h>
-#include <linux/cleancache.h>
 
 #include "ext4.h"
 #include "ext4_jbd2.h"
@@ -1793,7 +1792,6 @@ static int ext4_setup_super(struct super_block *sb, struct ext4_super_block *es,
 			EXT4_INODES_PER_GROUP(sb),
 			sbi->s_mount_opt);
 
-	cleancache_init_fs(sb);
 	if (EXT4_SB(sb)->s_journal) {
 		printk(KERN_INFO "EXT4 FS on %s, %s journal on %s\n",
 		       sb->s_id, EXT4_SB(sb)->s_journal->j_inode ? "internal" :
@@ -1801,6 +1799,7 @@ static int ext4_setup_super(struct super_block *sb, struct ext4_super_block *es,
 	} else {
 		printk(KERN_INFO "EXT4 FS on %s, no journal\n", sb->s_id);
 	}
+	cleancache_init_fs(sb);
 	return res;
 }
 
