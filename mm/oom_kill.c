@@ -110,7 +110,7 @@ static bool has_intersects_mems_allowed(struct task_struct *tsk,
  * pointer.  Return p, or any of its subthreads with a valid ->mm, with
  * task_lock() held.
  */
-static struct task_struct *find_lock_task_mm(struct task_struct *p)
+struct task_struct *find_lock_task_mm(struct task_struct *p)
 {
   struct task_struct *t = p;
 
@@ -710,7 +710,7 @@ void out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask,
 	read_lock(&tasklist_lock);
 	if (sysctl_oom_kill_allocating_task &&
 	    !oom_unkillable_task(current, NULL, nodemask) &&
-	    current->mm)) {
+	    current->mm) {
 		/*
 		 * oom_kill_process() needs tasklist_lock held.  If it returns
 		 * non-zero, current could not be killed so we must fallback to

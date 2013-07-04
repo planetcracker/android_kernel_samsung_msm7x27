@@ -24,6 +24,8 @@
 
 struct zonelist;
 struct notifier_block;
+struct mem_cgroup;
+struct task_struct;
 
 /*
  * Types of limitations to the nodes from which allocations may occur
