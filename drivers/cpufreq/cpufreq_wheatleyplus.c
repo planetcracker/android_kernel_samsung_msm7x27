@@ -32,19 +32,19 @@
  * It helps to keep variable names smaller, simpler
  */
 
-#define DEF_FREQUENCY_UP_THRESHOLD		(80)
-#define DEF_SAMPLING_DOWN_FACTOR		(2)
+#define DEF_FREQUENCY_UP_THRESHOLD		(78)
+#define DEF_SAMPLING_DOWN_FACTOR		(3)
 #define MAX_SAMPLING_DOWN_FACTOR		(100000)
 #define DEF_SAMPLING_DOWN_MAX_MOMENTUM		(10)
 #define DEF_SAMPLING_DOWN_MOMENTUM_SENSITIVITY	(100)
 #define MAX_SAMPLING_DOWN_MOMENTUM_SENSITIVITY	(1000)
 #define MICRO_FREQUENCY_DOWN_DIFFERENTIAL	(3)
-#define MICRO_FREQUENCY_UP_THRESHOLD		(88)
+#define MICRO_FREQUENCY_UP_THRESHOLD		(80)
 #define MICRO_FREQUENCY_MIN_SAMPLE_RATE		(10000)
 #define MIN_FREQUENCY_UP_THRESHOLD		(11)
 #define MAX_FREQUENCY_UP_THRESHOLD		(100)
 #define DEF_TARGET_RESIDENCY			(10000)
-#define DEF_ALLOWED_MISSES			(5)
+#define DEF_ALLOWED_MISSES			(2)
 #define DEF_SMOOTH_UI				(1)
 #define DEFAULT_WHFREQ_BOOST_TIME		(500000)
 #define DEFAULT_BOOST_FREQ			(604800)
@@ -63,7 +63,7 @@
 
 bool gpu_busy_state;
 #define GPU_MAX_IDLE_COUNTER			800
-#define GPU_COUNTER_INCREASE			10
+#define GPU_COUNTER_INCREASE			20
 #define GPU_SEMI_BUSY_THRESHOLD			200
 #define GPU_SEMI_BUSY_CLR_THRESHOLD		120
 #define GPU_BUSY_THRESHOLD			500
@@ -961,9 +961,9 @@ static void dbs_check_cpu(struct cpu_dbs_info_s *this_dbs_info)
 
 		if (counter < MAX_IDLE_COUNTER) {
 			if ((counter < dbs_tuners_ins.semi_busy_threshold) && (phase == 0))
-				counter += 8;
+				counter += 12;
 			else
-				counter += 2;
+				counter += 4;
 			if ((counter > dbs_tuners_ins.semi_busy_threshold) && (phase < 1)) {
 				/* change to semi-busy phase (3) */
 				phase = 1;
