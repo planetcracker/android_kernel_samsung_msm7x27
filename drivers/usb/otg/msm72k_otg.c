@@ -36,6 +36,10 @@
 #include <linux/uaccess.h>
 #include <mach/clk.h>
 #include <mach/msm_xo.h>
+#ifdef CONFIG_FORCE_FAST_CHARGE
+#include <linux/fastchg.h>
+#define USB_FASTCHG_LOAD 1800 /* mA */
+#endif
 
 #define MSM_USB_BASE	(dev->regs)
 #define USB_LINK_RESET_TIMEOUT	(msecs_to_jiffies(10))
@@ -524,7 +528,12 @@ static int msm_otg_set_power(struct otg_transceiver *xceiv, unsigned mA)
 	/* Always use USB_IDCHG_MAX for charging in ID_B and ID_C */
 	if (test_bit(ID_C, &dev->inputs) ||
 				test_bit(ID_B, &dev->inputs))
-		charge = USB_IDCHG_MAX;
+		#ifdef CONFIG_FORCE_FAST_CHARGE
+		if (force_fast_charge == 1) 
+			charge = USB_FASTCHG_LOAD;
+		else
+			charge = USB_IDCHG_MAX;
+		#endif
 
 	pr_debug("Charging with %dmA current\n", charge);
 	/* Call vbus_draw only if the charger is of known type */

@@ -187,6 +187,13 @@ config MACH_TASS
 	help
 	  Support for the Samsung Tass board.
 
+config FORCE_FAST_CHARGE
+  bool "Force AC charge mode at will"
+  default y
+  help
+    A simple sysfs interface to force adapters that
+    are detected as USB to charge as AC.
+
 config MACH_TASSDT
 	depends on ARCH_MSM7X27
 	depends on !MSM_STACKED_MEMORY

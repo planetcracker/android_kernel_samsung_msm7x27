@@ -70,6 +70,9 @@
 
 #include <mach/msm_rpcrouter.h>
 #include <mach/msm_battery.h>
+#ifdef CONFIG_FORCE_FAST_CHARGE
+#include <linux/fastchg.h>
+#endif
 
 #ifndef MAX8899_CHARGER
 #define MAX8899_CHARGER
@@ -878,7 +881,10 @@ static int msm_power_get_property(struct power_supply *psy,
 		}
 
 		else if (psy->type == POWER_SUPPLY_TYPE_USB) {
-			val->intval = (charger ==  CHARGER_USB ? 1 : 0);
+			if (force_fast_charge == 1)
+				val->intval = (charger ==  CHARGER_AC ? 1 : 0);
+			else
+				val->intval = (charger ==  CHARGER_USB ? 1 : 0);
 			//printk(KERN_INFO "%s(): power supply = %s online = %d\n"
 			//		, __func__, psy->name, val->intval);
 		}
@@ -1429,7 +1435,10 @@ else
 			msm_batt_info.current_chg_source = CHARGER_BATTERY;
 			break;
 		case CHARGER_TYPE_USB_PC:
-			msm_batt_info.current_chg_source = CHARGER_USB;
+			if (force_fast_charge == 1) 
+				msm_batt_info.current_chg_source = CHARGER_AC;
+			else
+				msm_batt_info.current_chg_source = CHARGER_USB;
 			break;
 		case CHARGER_TYPE_WALL:
 			msm_batt_info.current_chg_source = CHARGER_AC;
