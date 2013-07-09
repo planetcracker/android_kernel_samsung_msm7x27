@@ -32,7 +32,7 @@
  * It helps to keep variable names smaller, simpler
  */
 
-#define DEF_FREQUENCY_UP_THRESHOLD		(78)
+#define DEF_FREQUENCY_UP_THRESHOLD		(76)
 #define DEF_SAMPLING_DOWN_FACTOR		(3)
 #define MAX_SAMPLING_DOWN_FACTOR		(100000)
 #define DEF_SAMPLING_DOWN_MAX_MOMENTUM		(10)
@@ -53,8 +53,8 @@
 #define MAX_IDLE_COUNTER			160
 #define PHASE_2_PERCENT				65
 #define PHASE_3_PERCENT				85
-#define PHASE_2_FREQ				360000
-#define PHASE_3_FREQ				480000
+#define PHASE_2_FREQ				480000
+#define PHASE_3_FREQ				604800
 #define SEMI_BUSY_THRESHOLD			16
 #define SEMI_BUSY_CLR_THRESHOLD			8
 #define BUSY_THRESHOLD				120
@@ -936,7 +936,7 @@ static void dbs_check_cpu(struct cpu_dbs_info_s *this_dbs_info)
 	if (deepidle_state) {
 	    deepidle_time = deepidle_state->time;
 	    deepidle_usage = deepidle_state->usage;
-		    
+
 	    total_idletime += (unsigned long)(deepidle_time - j_dbs_info->prev_idletime);
 	    total_usage += (unsigned long)(deepidle_usage - j_dbs_info->prev_idleusage);
 
@@ -1185,12 +1185,14 @@ static inline void dbs_timer_exit(struct cpu_dbs_info_s *dbs_info)
 
 static void powersave_early_suspend(struct early_suspend *handler)
 {
+	dbs_tuners_ins.smooth_ui = 0;
 	dbs_tuners_ins.sampling_down_max_mom = 0;
 	dbs_tuners_ins.sampling_rate *= 4;
 }
 
 static void powersave_late_resume(struct early_suspend *handler)
 {
+	dbs_tuners_ins.smooth_ui = 1;
 	dbs_tuners_ins.sampling_down_max_mom =
 		orig_sampling_down_max_mom;
 	dbs_tuners_ins.sampling_rate = orig_sampling_rate;

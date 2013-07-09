@@ -211,7 +211,7 @@ static struct clkctl_acpu_speed pll0_960_pll1_245_pll2_1200[] = {
 	{ 0, 400000, ACPU_PLL_2, 2, 2, 133333, 2, 4, 122880 },
 	{ 1, 480000, ACPU_PLL_0, 4, 1, 160000, 2, 4, 122880 },
 	{ 1, 604800, ACPU_PLL_2, 2, 1, 201600, 2, 5, 122880 },
-	{ 1, 652800, ACPU_PLL_2, 2, 1, 217600, 2, 6, 122880 },
+	{ 1, 652800, ACPU_PLL_0, 4, 0, 217600, 2, 6, 122880 },
 	//{ 1, 691200, ACPU_PLL_2, 2, 1, 172800, 3, 7, 122880 },
 	//{ 1, 710400, ACPU_PLL_2, 2, 0, 175200, 3, 7, 122880 },
 #ifdef CONFIG_MACH_BENI
@@ -285,7 +285,9 @@ static struct clkctl_acpu_speed pll0_960_pll1_196_pll2_800[] = {
 #define PLL_800_MHZ	41
 #define PLL_960_MHZ	50
 #define PLL_1056_MHZ	55
-#define PLL_1200_MHZ	63
+#define PLL_1200_MHZ	62
+#define PLL_1210_MHZ	64
+
 
 #define PLL_CONFIG(m0, m1, m2) { \
 	PLL_##m0##_MHZ, PLL_##m1##_MHZ, PLL_##m2##_MHZ, \
@@ -461,6 +463,11 @@ static void acpuclk_set_div(const struct clkctl_acpu_speed *hunt_s)
 					udelay(50);
 			}
 
+	if(hunt_s->a11clk_khz==604800) {
+					writel(PLL_1210_MHZ, PLLn_L_VAL(2));
+					udelay(50);
+			}
+
 
 	/*
 	 * If the new clock divider is higher than the previous, then
@@ -491,6 +498,11 @@ static void acpuclk_set_div(const struct clkctl_acpu_speed *hunt_s)
 		writel(PLL_960_MHZ, PLLn_L_VAL(0));
 		udelay(50);
 	}
+
+	if(hunt_s->a11clk_khz<604800) {
+					writel(PLL_1200_MHZ, PLLn_L_VAL(2));
+					udelay(50);
+			}
 
 	/*
 	 * If the new clock divider is lower than the previous, then
@@ -771,9 +783,6 @@ static void __init acpu_freq_tbl_fixup(void)
 		cpu_relax();
 		udelay(50);
 	} while (pll1_l == 0);
-	/* Overclock PLL2 to it's maximum frequency */
-		writel(PLL_1200_MHZ, PLLn_L_VAL(2));
-		udelay(50);
 	do {
 		pll2_l = readl(PLLn_L_VAL(2)) & 0x3f;
 		cpu_relax();
