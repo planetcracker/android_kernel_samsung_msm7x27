@@ -22,7 +22,7 @@
 #include <linux/cpumask.h>
 #include <asm/div64.h>
 
-#define CPUFREQ_NAME_LEN 16
+#define CPUFREQ_NAME_LEN 32
 
 /* Wheatleyplus gpu state detection */
 extern bool gpu_busy_state;
@@ -395,6 +395,9 @@ extern struct cpufreq_governor cpufreq_gov_lagfree;
 #elif defined(CONFIG_CPU_FREQ_DEFAULT_GOV_WHEATLEYPLUS)
 extern struct cpufreq_governor cpufreq_gov_wheatleyplus;
 #define CPUFREQ_DEFAULT_GOVERNOR  (&cpufreq_gov_wheatleyplus)
+#elif defined(CONFIG_CPU_FREQ_DEFAULT_GOV_DYNAMIC_INTERACTIVE)
+extern struct cpufreq_governor cpufreq_gov_dynamic_interactive;
+#define CPUFREQ_DEFAULT_GOVERNOR  (&cpufreq_gov_dynamic_interactive)
 #endif
 
 
