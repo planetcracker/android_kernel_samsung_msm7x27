@@ -186,7 +186,7 @@ static unsigned long ksm_rmap_items;
 static unsigned int ksm_thread_pages_to_scan = 312;
 
 /* Milliseconds ksmd should sleep between batches */
-static unsigned int ksm_thread_sleep_millisecs = 3000;
+static unsigned int ksm_thread_sleep_millisecs = 2000;
 
 #define KSM_RUN_STOP	0
 #define KSM_RUN_MERGE	1
