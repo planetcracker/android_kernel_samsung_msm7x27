@@ -41,6 +41,7 @@ struct workqueue_struct *taos_wq;
 
 /* prototype */
 extern short taos_get_proximity_value(void);
+extern short taos_get_pocket_mode(void);
 static int proximity_open(struct inode *ip, struct file *fp);
 static int proximity_release(struct inode *ip, struct file *fp);
 static long proximity_ioctl(struct file *filp, unsigned int cmd, unsigned long arg);

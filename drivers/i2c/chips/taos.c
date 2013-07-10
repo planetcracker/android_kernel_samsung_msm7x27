@@ -170,6 +170,8 @@ static bool proximity_enable = 0;
 
 static short proximity_value = 0;
 
+static short pocket_mode = 0;
+
 static struct wake_lock prx_wake_lock;
 
 static struct vreg *vreg_proximity;
@@ -256,6 +258,13 @@ short taos_get_proximity_value()
 
 EXPORT_SYMBOL(taos_get_proximity_value);
 
+short taos_get_pocket_mode()
+{
+	return ((pocket_mode==1)? 0:1);
+}
+
+EXPORT_SYMBOL(taos_get_pocket_mode);
+
 
 static ssize_t proxsensor_file_state_show(struct device *dev,
         struct device_attribute *attr, char *buf)
@@ -320,6 +329,7 @@ static void taos_work_func_prox(struct work_struct *work)
 	{
 		printk("[HSS] [%s] +++ adc_data=[%d], threshold_high=[%d],  threshold_min=[%d]\n", __func__, adc_data, threshold_high, threshold_low);
 		proximity_value = 1;
+		pocket_mode = 1;
 		prox_int_thresh[0] = (PRX_THRSH_LO_PARAM) & 0xFF;
 		prox_int_thresh[1] = (PRX_THRSH_LO_PARAM >> 8) & 0xFF;
 		prox_int_thresh[2] = (0xFFFF) & 0xFF;
@@ -333,6 +343,7 @@ static void taos_work_func_prox(struct work_struct *work)
 	{
 		printk("[HSS] [%s] --- adc_data=[%d], threshold_high=[%d],  threshold_min=[%d]\n", __func__, adc_data, threshold_high, threshold_low);
 		proximity_value = 0;
+		pocket_mode = 0;
 		prox_int_thresh[0] = (0x0000) & 0xFF;
 		prox_int_thresh[1] = (0x0000 >> 8) & 0xFF;
 		prox_int_thresh[2] = (PRX_THRSH_HI_PARAM) & 0xFF;
