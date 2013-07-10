@@ -61,6 +61,11 @@
  */
 #define BYTE	u8
 #if defined(CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS)
+#define PUT4(s, d) \
+	put_unaligned(get_unaligned((const u32 *) s), (u32 *) d)
+#define PUT8(s, d) \
+	put_unaligned(get_unaligned((const u64 *) s), (u64 *) d)
+#else /* CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS */
 typedef struct _U32_S { u32 v; } U32_S;
 typedef struct _U64_S { u64 v; } U64_S;
 
@@ -69,12 +74,6 @@ typedef struct _U64_S { u64 v; } U64_S;
 
 #define PUT4(s, d) (A32(d) = A32(s))
 #define PUT8(s, d) (A64(d) = A64(s))
-#else /* CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS */
-
-#define PUT4(s, d) \
-	put_unaligned(get_unaligned((const u32 *) s), (u32 *) d)
-#define PUT8(s, d) \
-	put_unaligned(get_unaligned((const u64 *) s), (u64 *) d)
 #endif
 
 #define COPYLENGTH 8
