@@ -45,22 +45,26 @@
 static uint32_t lowmem_debug_level = 1;
 static short lowmem_adj[6] = {
 	0,
-	1,
+	3,
 	6,
+	10,
 	12,
+	15,
 };
-static int lowmem_adj_size = 4;
+static int lowmem_adj_size = 6;
 static int lowmem_minfree[6] = {
-	3 * 1024,	/* 12MB */
-	4 * 1024,	/* 16MB */
-	10 * 1024,	/* 40MB */
-	16 * 1024,	/* 64MB */
+	1536,	/* 12MB */
+	2048,	/* 16MB */
+	9216,	/* 40MB */
+	10240,	/* 64MB */
+	12800,
+	15360,
 };
-static int lowmem_minfree_size = 4;
+static int lowmem_minfree_size = 6;
 
 static int white_list[6] = {
 };
-static int white_list_size = 0;
+static int white_list_size = 6;
 
 static unsigned long lowmem_deathpending_timeout;
 
@@ -226,8 +230,8 @@ static void __exit lowmem_exit(void)
 }
 
 module_param_named(cost, lowmem_shrinker.seeks, int, S_IRUGO | S_IWUSR);
-module_param_array_named(adj, lowmem_adj, short, &lowmem_adj_size, S_IRUGO | S_IWUSR);
-module_param_array_named(minfree, lowmem_minfree, uint, &lowmem_minfree_size, S_IRUGO | S_IWUSR);
+module_param_array_named(adj, lowmem_adj, short, &lowmem_adj_size, S_IRUGO);
+module_param_array_named(minfree, lowmem_minfree, uint, &lowmem_minfree_size, S_IRUGO);
 module_param_array_named(w_list, white_list, int, &white_list_size, S_IRUGO | S_IWUSR);
 module_param_named(debug_level, lowmem_debug_level, uint, S_IRUGO | S_IWUSR);
 
