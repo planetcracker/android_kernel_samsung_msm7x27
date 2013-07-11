@@ -46,7 +46,7 @@
 #define DEFAULT_AWAKE_IDEAL_FREQ 360000
 static unsigned int awake_ideal_freq;
 
-#define DEFAULT_BOOST_FREQ 480000
+#define DEFAULT_BOOST_FREQ 604800
 static unsigned int boost_freq;
 
 /*
@@ -77,20 +77,20 @@ static unsigned int ramp_down_step;
 /*
  * CPU freq will be increased if measured load > max_cpu_load;
  */
-#define DEFAULT_MAX_CPU_LOAD 70
+#define DEFAULT_MAX_CPU_LOAD 65
 static unsigned long max_cpu_load;
 
 /*
  * CPU freq will be decreased if measured load < min_cpu_load;
  */
-#define DEFAULT_MIN_CPU_LOAD 50
+#define DEFAULT_MIN_CPU_LOAD 45
 static unsigned long min_cpu_load;
 
 /*
  * The minimum amount of time to spend at a frequency before we can ramp up.
  * Notice we ignore this when we are below the ideal frequency.
  */
-#define DEFAULT_UP_RATE_US 52000;
+#define DEFAULT_UP_RATE_US 49000;
 static unsigned long up_rate_us;
 
 /*
@@ -123,7 +123,7 @@ static unsigned int boost_enabled;
  * Boost pulse
  */
 #define DEFAULT_BOOST_PULSE 300000
-#define MAX_BOOST_PULSE 1500000
+#define MAX_BOOST_PULSE 2500000
 static unsigned long boost_pulse;
 static u64 boost_pulse_time;
 extern unsigned int touch_state_val;
