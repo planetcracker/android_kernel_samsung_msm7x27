@@ -86,7 +86,7 @@ static enum tune_values {
 	HIGH_PERF_TUNE
 } cur_tune_value;
 
-#define MIN_GO_HISPEED_LOAD 70
+#define MIN_GO_HISPEED_LOAD 65
 #define DEFAULT_LOW_POWER_RATE 10
 
 /* default number of sampling periods to average before hotplug-in decision */
@@ -99,7 +99,7 @@ static enum tune_values {
 static u64 hispeed_freq;
 
 /* Go to hi speed when CPU load at or above this value. */
-#define DEFAULT_GO_HISPEED_LOAD 95
+#define DEFAULT_GO_HISPEED_LOAD 90
 static unsigned long go_hispeed_load;
 /*
  * The minimum amount of time to spend at a frequency before we can ramp down.
