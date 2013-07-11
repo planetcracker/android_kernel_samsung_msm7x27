@@ -453,6 +453,7 @@ struct dev_pm_info {
 	unsigned int		can_wakeup:1;
 	unsigned int		should_wakeup:1;
 	unsigned		async_suspend:1;
+	unsigned int            in_suspend:1;   /* Owned by the PM core */
 	enum dpm_state		status;		/* Owned by the PM core */
 #ifdef CONFIG_PM_SLEEP
 	struct list_head	entry;
