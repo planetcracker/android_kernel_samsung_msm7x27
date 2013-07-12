@@ -580,8 +580,7 @@ out:
 }
 
 unsigned long compact_zone_order(struct zone *zone,
-				 int order, gfp_t gfp_mask,
-				 bool sync)
+				 int order, gfp_t gfp_mask)
 {
 	struct compact_control cc = {
 		.nr_freepages = 0,
@@ -589,7 +588,6 @@ unsigned long compact_zone_order(struct zone *zone,
 		.order = order,
 		.migratetype = allocflags_to_migratetype(gfp_mask),
 		.zone = zone,
-		.sync = sync,
 	};
 	INIT_LIST_HEAD(&cc.freepages);
 	INIT_LIST_HEAD(&cc.migratepages);
@@ -635,7 +633,7 @@ unsigned long try_to_compact_pages(struct zonelist *zonelist,
 								nodemask) {
 		int status;
 
-		status = compact_zone_order(zone, order, gfp_mask, sync);
+		status = compact_zone_order(zone, order, gfp_mask);
 		rc = max(status, rc);
 
 		/* If a normal allocation would succeed, stop compacting */
