@@ -248,6 +248,8 @@ static inline void lru_cache_add_file(struct page *page)
 #define ISOLATE_BOTH 2		/* Isolate both active and inactive pages. */
 /* Isolate clean file */
 #define ISOLATE_CLEAN		((__force isolate_mode_t)0x4)
+/* Isolate unmapped file */
+#define ISOLATE_UNMAPPED  ((__force isolate_mode_t)0x8)
 
 /* LRU Isolation modes. */
 typedef unsigned __bitwise__ isolate_mode_t;
