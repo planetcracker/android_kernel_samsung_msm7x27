@@ -1,16 +1,17 @@
 /* drivers/misc/lowmemorykiller.c
  *
  * The lowmemorykiller driver lets user-space specify a set of memory thresholds
- * where processes with a range of oom_adj values will get killed. Specify the
- * minimum oom_adj values in /sys/module/lowmemorykiller/parameters/adj and the
- * number of free pages in /sys/module/lowmemorykiller/parameters/minfree. Both
- * files take a comma separated list of numbers in ascending order.
+ * where processes with a range of oom_score_adj values will get killed. Specify
+ * the minimum oom_score_adj values in
+ * /sys/module/lowmemorykiller/parameters/adj and the number of free pages in
+ * /sys/module/lowmemorykiller/parameters/minfree. Both files take a comma
+ * separated list of numbers in ascending order.
  *
  * For example, write "0,8" to /sys/module/lowmemorykiller/parameters/adj and
- * "1024,4096" to /sys/module/lowmemorykiller/parameters/minfree to kill processes
- * with a oom_adj value of 8 or higher when the free memory drops below 4096 pages
- * and kill processes with a oom_adj value of 0 or higher when the free memory
- * drops below 1024 pages.
+ * "1024,4096" to /sys/module/lowmemorykiller/parameters/minfree to kill
+ * processes with a oom_score_adj value of 8 or higher when the free memory
+ * drops below 4096 pages and kill processes with a oom_score_adj value of 0 or
+ * higher when the free memory drops below 1024 pages.
  *
  * The driver considers memory used for caches to be free, but if a large
  * percentage of the cached memory is locked this can be very inaccurate
@@ -39,8 +40,6 @@
 #include <linux/notifier.h>
 #include <linux/swap.h>
 #include <linux/compaction.h>
-
-#define SEC_ADJUST_LMK
 
 static uint32_t lowmem_debug_level = 1;
 static short lowmem_adj[6] = {
@@ -76,8 +75,7 @@ extern int compact_nodes(bool sync);
 			printk(x);			\
 	} while (0)
 
-
-static int lowmem_shrink(struct shrinker *s, int nr_to_scan, gfp_t gfp_mask)
+static int lowmem_shrink(struct shrinker *s, struct shrink_control *sc)
 {
 	struct task_struct *tsk;
 	struct task_struct *selected = NULL;
@@ -90,13 +88,7 @@ static int lowmem_shrink(struct shrinker *s, int nr_to_scan, gfp_t gfp_mask)
 	int white_size = ARRAY_SIZE(white_list);
 	int array_size = ARRAY_SIZE(lowmem_adj);
 	int other_free = global_page_state(NR_FREE_PAGES) - totalreserve_pages;
-#ifdef SEC_ADJUST_LMK
-	int other_file = global_page_state(NR_INACTIVE_FILE) +
-						global_page_state(NR_ACTIVE_FILE);
-#else
-	int other_file = global_page_state(NR_FILE_PAGES) -
-						global_page_state(NR_SHMEM);
-#endif
+	int other_file = global_page_state(NR_FILE_PAGES) - global_page_state(NR_SHMEM);
 
 	if (white_list_size < white_size)
 		white_size = white_list_size;
@@ -105,37 +97,25 @@ static int lowmem_shrink(struct shrinker *s, int nr_to_scan, gfp_t gfp_mask)
 	if (lowmem_minfree_size < array_size)
 		array_size = lowmem_minfree_size;
 	for (i = 0; i < array_size; i++) {
-#ifdef SEC_ADJUST_LMK
-		if ((other_free + other_file) < lowmem_minfree[i])
-#else
 		if (other_free < lowmem_minfree[i] &&
 		    other_file < lowmem_minfree[i])
-#endif
 		{
 			min_score_adj = lowmem_adj[i];
 			break;
 		}
 	}
-#ifdef SEC_ADJUST_LMK
-	if (min_score_adj == OOM_ADJUST_MAX + 1)
-		return 0;
-#endif
-	if (nr_to_scan > 0)
-		lowmem_print(3, "lowmem_shrink %d, %x, ofree %d %d, ma %hd\n",
-        nr_to_scan, gfp_mask, other_free,
+	if (sc->nr_to_scan > 0)
+		lowmem_print(3, "lowmem_shrink %lu, %x, ofree %d %d, ma %hd\n",
+        sc->nr_to_scan, sc->gfp_mask, other_free,
         other_file, min_score_adj);
 	rem = global_page_state(NR_ACTIVE_ANON) +
 		global_page_state(NR_ACTIVE_FILE) +
 		global_page_state(NR_INACTIVE_ANON) +
 		global_page_state(NR_INACTIVE_FILE);
-#ifdef SEC_ADJUST_LMK
-	if (nr_to_scan <= 0)
-#else
-	if (nr_to_scan <= 0 || min_score_adj == OOM_SCORE_ADJ_MAX + 1)
-#endif
+	if (sc->nr_to_scan <= 0 || min_score_adj == OOM_SCORE_ADJ_MAX + 1)
 	{
-		lowmem_print(5, "lowmem_shrink %d, %x, return %d\n",
-			     nr_to_scan, gfp_mask, rem);
+		lowmem_print(5, "lowmem_shrink %lu, %x, return %d\n",
+			     sc->nr_to_scan, sc->gfp_mask, rem);
 		return rem;
 	}
 	selected_oom_score_adj = min_score_adj;
@@ -182,7 +162,7 @@ static int lowmem_shrink(struct shrinker *s, int nr_to_scan, gfp_t gfp_mask)
 		if (selected) {
 			if (oom_score_adj < selected_oom_score_adj)
 				continue;
-			if (oom_score_adj < selected_oom_score_adj &&
+			if (oom_score_adj == selected_oom_score_adj &&
 			    tasksize <= selected_tasksize)
 				continue;
 		}
@@ -201,12 +181,8 @@ static int lowmem_shrink(struct shrinker *s, int nr_to_scan, gfp_t gfp_mask)
 		set_tsk_thread_flag(selected, TIF_MEMDIE);
 		rem -= selected_tasksize;
 	}
-#ifdef SEC_ADJUST_LMK
-	else
-		rem = -1;
-#endif
-	lowmem_print(4, "lowmem_shrink %d, %x, return %d\n",
-		     nr_to_scan, gfp_mask, rem);
+	lowmem_print(4, "lowmem_shrink %lu, %x, return %d\n",
+		     sc->nr_to_scan, sc->gfp_mask, rem);
 	rcu_read_unlock();
 	if (selected)
 		compact_nodes(false);
