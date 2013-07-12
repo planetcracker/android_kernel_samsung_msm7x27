@@ -246,6 +246,11 @@ static inline void lru_cache_add_file(struct page *page)
 #define ISOLATE_INACTIVE 0	/* Isolate inactive pages. */
 #define ISOLATE_ACTIVE 1	/* Isolate active pages. */
 #define ISOLATE_BOTH 2		/* Isolate both active and inactive pages. */
+/* Isolate clean file */
+#define ISOLATE_CLEAN		((__force isolate_mode_t)0x4)
+
+/* LRU Isolation modes. */
+typedef unsigned __bitwise__ isolate_mode_t;
 
 /* linux/mm/vmscan.c */
 extern unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
