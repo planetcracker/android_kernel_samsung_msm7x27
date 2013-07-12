@@ -663,11 +663,7 @@ static int compact_node(int nid, bool sync)
 			.nr_freepages = 0,
 			.nr_migratepages = 0,
 			.order = -1,
-<<<<<<< HEAD
                         .sync = sync,
-			.compact_mode = COMPACT_MODE_DIRECT_RECLAIM,
-=======
->>>>>>> d527caf... mm: compaction: prevent kswapd compacting memory to reduce CPU usage
 		};
 
 		zone = &pgdat->node_zones[zoneid];
