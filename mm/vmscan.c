@@ -201,26 +201,6 @@ void unregister_shrinker(struct shrinker *shrinker)
 }
 EXPORT_SYMBOL(unregister_shrinker);
 
-void register_zshrinker(struct zshrinker *zshrinker)
-{
-	atomic_long_set(&zshrinker->nr_in_batch, 0);
-	down_write(&shrinker_rwsem);
-	list_add_tail(&zshrinker->list, &shrinker_list);
-	up_write(&shrinker_rwsem);
-}
-EXPORT_SYMBOL(register_zshrinker);
-
-/*
- * Remove one
- */
-void unregister_zshrinker(struct zshrinker *zshrinker)
-{
-	down_write(&shrinker_rwsem);
-	list_del(&zshrinker->list);
-	up_write(&shrinker_rwsem);
-}
-EXPORT_SYMBOL(unregister_zshrinker);
-
 static inline int do_shrinker_shrink(struct shrinker *shrinker,
 				     struct shrink_control *sc,
 				     unsigned long nr_to_scan)
