@@ -2231,10 +2231,7 @@ unsigned long mem_cgroup_shrink_node_zone(struct mem_cgroup *mem,
 		.order = 0,
 		.mem_cgroup = mem,
 	};
-<<<<<<< HEAD
 	ktime_t start, end;
-=======
->>>>>>> parent of b8432d1... memcg: add memory.vmscan_stat
 
 	sc.gfp_mask = (gfp_mask & GFP_RECLAIM_MASK) |
 			(GFP_HIGHUSER_MOVABLE & ~GFP_RECLAIM_MASK);
@@ -2243,10 +2240,7 @@ unsigned long mem_cgroup_shrink_node_zone(struct mem_cgroup *mem,
 						      sc.may_writepage,
 						      sc.gfp_mask);
 
-<<<<<<< HEAD
 	start = ktime_get();
-=======
->>>>>>> parent of b8432d1... memcg: add memory.vmscan_stat
 	/*
 	 * NOTE: Although we can get the priority field, using it
 	 * here is not a good idea, since it limits the pages we can scan.
@@ -2255,14 +2249,11 @@ unsigned long mem_cgroup_shrink_node_zone(struct mem_cgroup *mem,
 	 * the priority and make it zero.
 	 */
 	shrink_zone(0, zone, &sc);
-<<<<<<< HEAD
 	end = ktime_get();
 
 	if (rec)
 		rec->elapsed += ktime_to_ns(ktime_sub(end, start));
 	*scanned = sc.nr_scanned;
-=======
->>>>>>> parent of b8432d1... memcg: add memory.vmscan_stat
 
 	trace_mm_vmscan_memcg_softlimit_reclaim_end(sc.nr_reclaimed);
 
@@ -2276,10 +2267,7 @@ unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *mem_cont,
 {
 	struct zonelist *zonelist;
 	unsigned long nr_reclaimed;
-<<<<<<< HEAD
 	ktime_t start, end;
-=======
->>>>>>> parent of b8432d1... memcg: add memory.vmscan_stat
 	int nid;
 	struct scan_control sc = {
 		.may_writepage = !laptop_mode,
@@ -2296,13 +2284,9 @@ unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *mem_cont,
 		.gfp_mask = sc.gfp_mask,
 	};
 
-<<<<<<< HEAD
 	start = ktime_get();
 
 	/*
-=======
-/*
->>>>>>> parent of b8432d1... memcg: add memory.vmscan_stat
 	 * Unlike direct reclaim via alloc_pages(), memcg's reclaim doesn't
 	 * take care of from where we get pages. So the node where we start the
 	 * scan does not need to be the current node.
@@ -2315,12 +2299,9 @@ unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *mem_cont,
 					    sc.gfp_mask);
 
 	nr_reclaimed = do_try_to_free_pages(zonelist, &sc, &shrink);
-<<<<<<< HEAD
 	end = ktime_get();
 	if (rec)
 		rec->elapsed += ktime_to_ns(ktime_sub(end, start));
-=======
->>>>>>> parent of b8432d1... memcg: add memory.vmscan_stat
 
 	trace_mm_vmscan_memcg_reclaim_end(nr_reclaimed);
 
