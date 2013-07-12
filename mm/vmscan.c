@@ -2250,7 +2250,7 @@ unsigned long mem_cgroup_shrink_node_zone(struct mem_cgroup *mem,
 		.mem_cgroup = mem,
 		.memcg_record = rec,
 	};
-	unsigned long start, end;
+	ktime_t start, end;
 
 	sc.gfp_mask = (gfp_mask & GFP_RECLAIM_MASK) |
 			(GFP_HIGHUSER_MOVABLE & ~GFP_RECLAIM_MASK);
@@ -2259,7 +2259,7 @@ unsigned long mem_cgroup_shrink_node_zone(struct mem_cgroup *mem,
 						      sc.may_writepage,
 						      sc.gfp_mask);
 
-	start = sched_clock();
+	start = ktime_get();
 	/*
 	 * NOTE: Although we can get the priority field, using it
 	 * here is not a good idea, since it limits the pages we can scan.
@@ -2268,10 +2268,10 @@ unsigned long mem_cgroup_shrink_node_zone(struct mem_cgroup *mem,
 	 * the priority and make it zero.
 	 */
 	shrink_zone(0, zone, &sc);
-	end = sched_clock();
+	end = ktime_get();
 
 	if (rec)
-		rec->elapsed += end - start;
+		rec->elapsed += ktime_to_ns(ktime_sub(end, start));
 	*scanned = sc.nr_scanned;
 
 	trace_mm_vmscan_memcg_softlimit_reclaim_end(sc.nr_reclaimed);
@@ -2286,7 +2286,7 @@ unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *mem_cont,
 {
 	struct zonelist *zonelist;
 	unsigned long nr_reclaimed;
-	unsigned long start, end;
+	ktime_t start, end;
 	int nid;
 	struct scan_control sc = {
 		.may_writepage = !laptop_mode,
@@ -2304,7 +2304,7 @@ unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *mem_cont,
 		.gfp_mask = sc.gfp_mask,
 	};
 
-	start = sched_clock();
+	start = ktime_get();
 
 	/*
 	 * Unlike direct reclaim via alloc_pages(), memcg's reclaim doesn't
@@ -2319,9 +2319,9 @@ unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *mem_cont,
 					    sc.gfp_mask);
 
 	nr_reclaimed = do_try_to_free_pages(zonelist, &sc, &shrink);
-	end = sched_clock();
+	end = ktime_get();
 	if (rec)
-		rec->elapsed += end - start;
+		rec->elapsed += ktime_to_ns(ktime_sub(end, start));
 
 	trace_mm_vmscan_memcg_reclaim_end(nr_reclaimed);
 
