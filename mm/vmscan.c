@@ -2371,7 +2371,7 @@ loop_again:
 			 * would ordinarily call try_to_compact_pages()
 			 */
 			if (sc.order > PAGE_ALLOC_COSTLY_ORDER)
-				compact_zone_order(zone, sc.order, sc.gfp_mask);
+				compact_zone_order(zone, sc.order, sc.gfp_mask, false);
 
 			if (!zone_watermark_ok_safe(zone, order,
 					high_wmark_pages(zone), end_zone, 0)) {

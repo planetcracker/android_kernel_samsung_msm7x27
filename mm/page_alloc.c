@@ -2124,6 +2124,7 @@ rebalance:
           migratetype, &did_some_progress, sync_migration);
     if (page)
       goto got_pg;
+	sync_migration = true;
 	}
 
 nopage:
