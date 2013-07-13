@@ -19,7 +19,7 @@
 #include <linux/debugfs.h>
 #include <linux/frontswap.h>
 #include <linux/swapfile.h>
-#include <linux/atomic.h>
+#include <asm/atomic.h>
 
 /*
  * frontswap_ops is set by frontswap_register_ops to contain the pointers
@@ -130,7 +130,7 @@ EXPORT_SYMBOL(__frontswap_init);
 static inline void __frontswap_clear(struct swap_info_struct *sis, pgoff_t offset)
 {
 	frontswap_clear(sis, offset);
-	atomic_dec(&sis->frontswap_pages);
+	sis->frontswap_pages--;
 }
 
 /*
@@ -157,7 +157,7 @@ int __frontswap_store(struct page *page)
 		frontswap_set(sis, offset);
 		inc_frontswap_succ_stores();
 		if (!dup)
-			atomic_inc(&sis->frontswap_pages);
+			sis->frontswap_pages++;
 	} else {
 		/*
 		  failed dup always results in automatic invalidate of
@@ -231,7 +231,7 @@ void __frontswap_invalidate_area(unsigned type)
 	if (sis->frontswap_map == NULL)
 		return;
 	frontswap_ops.invalidate_area(type);
-	atomic_set(&sis->frontswap_pages, 0);
+	sis->frontswap_pages = 0;
 	memset(sis->frontswap_map, 0, sis->max / sizeof(long));
 }
 EXPORT_SYMBOL(__frontswap_invalidate_area);
@@ -245,7 +245,7 @@ static unsigned long __frontswap_curr_pages(void)
 	assert_spin_locked(&swap_lock);
 	for (type = swap_list.head; type >= 0; type = si->next) {
 		si = swap_info[type];
-		totalpages += atomic_read(&si->frontswap_pages);
+		totalpages += si->frontswap_pages;
 	}
 	return totalpages;
 }
@@ -263,7 +263,7 @@ static int __frontswap_unuse_pages(unsigned long total, unsigned long *unused,
 	assert_spin_locked(&swap_lock);
 	for (type = swap_list.head; type >= 0; type = si->next) {
 		si = swap_info[type];
-		si_frontswap_pages = atomic_read(&si->frontswap_pages);
+		si_frontswap_pages = si->frontswap_pages;
 		if (total_pages_to_unuse < si_frontswap_pages) {
 			pages = pages_to_unuse = total_pages_to_unuse;
 		} else {
