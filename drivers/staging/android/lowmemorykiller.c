@@ -40,6 +40,9 @@
 #include <linux/mutex.h>
 #include <linux/delay.h>
 #include <linux/swap.h>
+#include <linux/compaction.h>
+
+extern void compact_nodes(bool sync);
 
 #ifdef CONFIG_HIGHMEM
 #define _ZONE ZONE_HIGHMEM
@@ -227,7 +230,8 @@ static int lowmem_shrink(struct shrinker *s, struct shrink_control *sc)
 
 		if (nr_to_scan > 0)
 			mutex_unlock(&scan_mutex);
-
+		if (selected)
+			compact_nodes(false);
 		return rem;
 	}
 	selected_oom_score_adj = min_score_adj;
