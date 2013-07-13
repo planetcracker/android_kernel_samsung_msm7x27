@@ -200,10 +200,10 @@ static void insert_block(struct xv_pool *pool, struct page *page, u32 offset,
 
 	if (block->link.next_page) {
 		nextblock = get_ptr_atomic(block->link.next_page,
-					block->link.next_offset, KM_USER1);
+					block->link.next_offset);
 		nextblock->link.prev_page = page;
 		nextblock->link.prev_offset = offset;
-		put_ptr_atomic(nextblock, KM_USER1);
+		put_ptr_atomic(nextblock);
 		/* If there was a next page then the free bits are set. */
 		return;
 	}
@@ -223,18 +223,18 @@ static void remove_block(struct xv_pool *pool, struct page *page, u32 offset,
 
 	if (block->link.prev_page) {
 		tmpblock = get_ptr_atomic(block->link.prev_page,
-				block->link.prev_offset, KM_USER1);
+				block->link.prev_offset);
 		tmpblock->link.next_page = block->link.next_page;
 		tmpblock->link.next_offset = block->link.next_offset;
-		put_ptr_atomic(tmpblock, KM_USER1);
+		put_ptr_atomic(tmpblock);
 	}
 
 	if (block->link.next_page) {
 		tmpblock = get_ptr_atomic(block->link.next_page,
-				block->link.next_offset, KM_USER1);
+				block->link.next_offset);
 		tmpblock->link.prev_page = block->link.prev_page;
 		tmpblock->link.prev_offset = block->link.prev_offset;
-		put_ptr_atomic(tmpblock, KM_USER1);
+		put_ptr_atomic(tmpblock);
 	}
 
 	/* Is this block is at the head of the freelist? */
@@ -251,7 +251,7 @@ static void remove_block(struct xv_pool *pool, struct page *page, u32 offset,
 					KM_USER1);
 			tmpblock->link.prev_page = NULL;
 			tmpblock->link.prev_offset = 0;
-			put_ptr_atomic(tmpblock, KM_USER1);
+			put_ptr_atomic(tmpblock);
 		} else {
 			/* This freelist bucket is empty */
 			__clear_bit(slindex % BITS_PER_LONG,
@@ -282,7 +282,7 @@ static int grow_pool(struct xv_pool *pool, gfp_t flags)
 	stat_inc(&pool->total_pages);
 
 	spin_lock(&pool->lock);
-	block = get_ptr_atomic(page, 0, KM_USER0);
+	block = get_ptr_atomic(page, 0);
 
 	block->size = PAGE_SIZE - XV_ALIGN;
 	set_flag(block, BLOCK_FREE);
@@ -291,7 +291,7 @@ static int grow_pool(struct xv_pool *pool, gfp_t flags)
 
 	insert_block(pool, page, 0, block);
 
-	put_ptr_atomic(block, KM_USER0);
+	put_ptr_atomic(block);
 	spin_unlock(&pool->lock);
 
 	return 0;
@@ -371,7 +371,7 @@ int xv_malloc(struct xv_pool *pool, u32 size, struct page **page,
 		return -ENOMEM;
 	}
 
-	block = get_ptr_atomic(*page, *offset, KM_USER0);
+	block = get_ptr_atomic(*page, *offset);
 
 	remove_block(pool, *page, *offset, block, index);
 
@@ -401,7 +401,7 @@ int xv_malloc(struct xv_pool *pool, u32 size, struct page **page,
 	block->size = origsize;
 	clear_flag(block, BLOCK_FREE);
 
-	put_ptr_atomic(block, KM_USER0);
+	put_ptr_atomic(block);
 	spin_unlock(&pool->lock);
 
 	*offset += XV_ALIGN;
@@ -421,7 +421,7 @@ void xv_free(struct xv_pool *pool, struct page *page, u32 offset)
 
 	spin_lock(&pool->lock);
 
-	page_start = get_ptr_atomic(page, 0, KM_USER0);
+	page_start = get_ptr_atomic(page, 0);
 	block = (struct block_header *)((char *)page_start + offset);
 
 	/* Catch double free bugs */
@@ -463,7 +463,7 @@ void xv_free(struct xv_pool *pool, struct page *page, u32 offset)
 
 	/* No used objects in this page. Free it. */
 	if (block->size == PAGE_SIZE - XV_ALIGN) {
-		put_ptr_atomic(page_start, KM_USER0);
+		put_ptr_atomic(page_start);
 		spin_unlock(&pool->lock);
 
 		__free_page(page);
@@ -481,7 +481,7 @@ void xv_free(struct xv_pool *pool, struct page *page, u32 offset)
 		set_blockprev(tmpblock, offset);
 	}
 
-	put_ptr_atomic(page_start, KM_USER0);
+	put_ptr_atomic(page_start);
 	spin_unlock(&pool->lock);
 }
 

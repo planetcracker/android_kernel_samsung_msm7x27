@@ -404,9 +404,9 @@ static const struct file_operations yaffs_file_operations = {
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(2,6,25))
 static void zero_user_segment(struct page *page, unsigned start, unsigned end)
 {
-	void * kaddr = kmap_atomic(page, KM_USER0);
+	void * kaddr = kmap_atomic(page);
 	memset(kaddr + start, 0, end - start);
-	kunmap_atomic(kaddr, KM_USER0);
+	kunmap_atomic(kaddr);
 	flush_dcache_page(page);
 }
 #endif

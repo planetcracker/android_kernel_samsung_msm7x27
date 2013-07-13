@@ -2051,20 +2051,20 @@ static int __extent_read_full_page(struct extent_io_tree *tree,
 
 		if (zero_offset) {
 			iosize = PAGE_CACHE_SIZE - zero_offset;
-			userpage = kmap_atomic(page, KM_USER0);
+			userpage = kmap_atomic(page);
 			memset(userpage + zero_offset, 0, iosize);
 			flush_dcache_page(page);
-			kunmap_atomic(userpage, KM_USER0);
+			kunmap_atomic(userpage);
 		}
 	}
 	while (cur <= end) {
 		if (cur >= last_byte) {
 			char *userpage;
 			iosize = PAGE_CACHE_SIZE - page_offset;
-			userpage = kmap_atomic(page, KM_USER0);
+			userpage = kmap_atomic(page);
 			memset(userpage + page_offset, 0, iosize);
 			flush_dcache_page(page);
-			kunmap_atomic(userpage, KM_USER0);
+			kunmap_atomic(userpage);
 			set_extent_uptodate(tree, cur, cur + iosize - 1,
 					    GFP_NOFS);
 			unlock_extent(tree, cur, cur + iosize - 1, GFP_NOFS);
@@ -2104,10 +2104,10 @@ static int __extent_read_full_page(struct extent_io_tree *tree,
 		/* we've found a hole, just zero and go on */
 		if (block_start == EXTENT_MAP_HOLE) {
 			char *userpage;
-			userpage = kmap_atomic(page, KM_USER0);
+			userpage = kmap_atomic(page);
 			memset(userpage + page_offset, 0, iosize);
 			flush_dcache_page(page);
-			kunmap_atomic(userpage, KM_USER0);
+			kunmap_atomic(userpage);
 
 			set_extent_uptodate(tree, cur, cur + iosize - 1,
 					    GFP_NOFS);
@@ -2247,10 +2247,10 @@ static int __extent_writepage(struct page *page, struct writeback_control *wbc,
 	if (page->index == end_index) {
 		char *userpage;
 
-		userpage = kmap_atomic(page, KM_USER0);
+		userpage = kmap_atomic(page);
 		memset(userpage + pg_offset, 0,
 		       PAGE_CACHE_SIZE - pg_offset);
-		kunmap_atomic(userpage, KM_USER0);
+		kunmap_atomic(userpage);
 		flush_dcache_page(page);
 	}
 	pg_offset = 0;
@@ -2797,14 +2797,14 @@ int extent_prepare_write(struct extent_io_tree *tree,
 		    (block_off_end > to || block_off_start < from)) {
 			void *kaddr;
 
-			kaddr = kmap_atomic(page, KM_USER0);
+			kaddr = kmap_atomic(page);
 			if (block_off_end > to)
 				memset(kaddr + to, 0, block_off_end - to);
 			if (block_off_start < from)
 				memset(kaddr + block_off_start, 0,
 				       from - block_off_start);
 			flush_dcache_page(page);
-			kunmap_atomic(kaddr, KM_USER0);
+			kunmap_atomic(kaddr);
 		}
 		if ((em->block_start != EXTENT_MAP_HOLE &&
 		     em->block_start != EXTENT_MAP_INLINE) &&
@@ -3498,9 +3498,9 @@ void read_extent_buffer(struct extent_buffer *eb, void *dstv,
 		page = extent_buffer_page(eb, i);
 
 		cur = min(len, (PAGE_CACHE_SIZE - offset));
-		kaddr = kmap_atomic(page, KM_USER1);
+		kaddr = kmap_atomic(page);
 		memcpy(dst, kaddr + offset, cur);
-		kunmap_atomic(kaddr, KM_USER1);
+		kunmap_atomic(kaddr);
 
 		dst += cur;
 		len -= cur;
@@ -3600,9 +3600,9 @@ int memcmp_extent_buffer(struct extent_buffer *eb, const void *ptrv,
 
 		cur = min(len, (PAGE_CACHE_SIZE - offset));
 
-		kaddr = kmap_atomic(page, KM_USER0);
+		kaddr = kmap_atomic(page);
 		ret = memcmp(ptr, kaddr + offset, cur);
-		kunmap_atomic(kaddr, KM_USER0);
+		kunmap_atomic(kaddr);
 		if (ret)
 			break;
 
@@ -3635,9 +3635,9 @@ void write_extent_buffer(struct extent_buffer *eb, const void *srcv,
 		WARN_ON(!PageUptodate(page));
 
 		cur = min(len, PAGE_CACHE_SIZE - offset);
-		kaddr = kmap_atomic(page, KM_USER1);
+		kaddr = kmap_atomic(page);
 		memcpy(kaddr + offset, src, cur);
-		kunmap_atomic(kaddr, KM_USER1);
+		kunmap_atomic(kaddr);
 
 		src += cur;
 		len -= cur;
@@ -3666,9 +3666,9 @@ void memset_extent_buffer(struct extent_buffer *eb, char c,
 		WARN_ON(!PageUptodate(page));
 
 		cur = min(len, PAGE_CACHE_SIZE - offset);
-		kaddr = kmap_atomic(page, KM_USER0);
+		kaddr = kmap_atomic(page);
 		memset(kaddr + offset, c, cur);
-		kunmap_atomic(kaddr, KM_USER0);
+		kunmap_atomic(kaddr);
 
 		len -= cur;
 		offset = 0;
@@ -3699,9 +3699,9 @@ void copy_extent_buffer(struct extent_buffer *dst, struct extent_buffer *src,
 
 		cur = min(len, (unsigned long)(PAGE_CACHE_SIZE - offset));
 
-		kaddr = kmap_atomic(page, KM_USER0);
+		kaddr = kmap_atomic(page);
 		read_extent_buffer(src, kaddr + offset, src_offset, cur);
-		kunmap_atomic(kaddr, KM_USER0);
+		kunmap_atomic(kaddr);
 
 		src_offset += cur;
 		len -= cur;
@@ -3714,38 +3714,38 @@ static void move_pages(struct page *dst_page, struct page *src_page,
 		       unsigned long dst_off, unsigned long src_off,
 		       unsigned long len)
 {
-	char *dst_kaddr = kmap_atomic(dst_page, KM_USER0);
+	char *dst_kaddr = kmap_atomic(dst_page);
 	if (dst_page == src_page) {
 		memmove(dst_kaddr + dst_off, dst_kaddr + src_off, len);
 	} else {
-		char *src_kaddr = kmap_atomic(src_page, KM_USER1);
+		char *src_kaddr = kmap_atomic(src_page);
 		char *p = dst_kaddr + dst_off + len;
 		char *s = src_kaddr + src_off + len;
 
 		while (len--)
 			*--p = *--s;
 
-		kunmap_atomic(src_kaddr, KM_USER1);
+		kunmap_atomic(src_kaddr);
 	}
-	kunmap_atomic(dst_kaddr, KM_USER0);
+	kunmap_atomic(dst_kaddr);
 }
 
 static void copy_pages(struct page *dst_page, struct page *src_page,
 		       unsigned long dst_off, unsigned long src_off,
 		       unsigned long len)
 {
-	char *dst_kaddr = kmap_atomic(dst_page, KM_USER0);
+	char *dst_kaddr = kmap_atomic(dst_page);
 	char *src_kaddr;
 
 	if (dst_page != src_page)
-		src_kaddr = kmap_atomic(src_page, KM_USER1);
+		src_kaddr = kmap_atomic(src_page);
 	else
 		src_kaddr = dst_kaddr;
 
 	memcpy(dst_kaddr + dst_off, src_kaddr + src_off, len);
-	kunmap_atomic(dst_kaddr, KM_USER0);
+	kunmap_atomic(dst_kaddr);
 	if (dst_page != src_page)
-		kunmap_atomic(src_kaddr, KM_USER1);
+		kunmap_atomic(src_kaddr);
 }
 
 void memcpy_extent_buffer(struct extent_buffer *dst, unsigned long dst_offset,

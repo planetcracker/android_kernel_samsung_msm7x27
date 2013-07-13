@@ -57,13 +57,13 @@ static void
 i915_gem_dump_page(struct page *page, uint32_t start, uint32_t end,
 		   uint32_t bias, uint32_t mark)
 {
-	uint32_t *mem = kmap_atomic(page, KM_USER0);
+	uint32_t *mem = kmap_atomic(page);
 	int i;
 	for (i = start; i < end; i += 4)
 		DRM_INFO("%08x: %08x%s\n",
 			  (int) (bias + i), mem[i / 4],
 			  (bias + i == mark) ? " ********" : "");
-	kunmap_atomic(mem, KM_USER0);
+	kunmap_atomic(mem);
 	/* give syslog time to catch up */
 	msleep(1);
 }
@@ -157,7 +157,7 @@ i915_gem_object_check_coherency(struct drm_gem_object *obj, int handle)
 	for (page = 0; page < obj->size / PAGE_SIZE; page++) {
 		int i;
 
-		backing_map = kmap_atomic(obj_priv->pages[page], KM_USER0);
+		backing_map = kmap_atomic(obj_priv->pages[page]);
 
 		if (backing_map == NULL) {
 			DRM_ERROR("failed to map backing page\n");
@@ -181,13 +181,13 @@ i915_gem_object_check_coherency(struct drm_gem_object *obj, int handle)
 				}
 			}
 		}
-		kunmap_atomic(backing_map, KM_USER0);
+		kunmap_atomic(backing_map);
 		backing_map = NULL;
 	}
 
  out:
 	if (backing_map != NULL)
-		kunmap_atomic(backing_map, KM_USER0);
+		kunmap_atomic(backing_map);
 	iounmap(gtt_mapping);
 
 	/* give syslog time to catch up */

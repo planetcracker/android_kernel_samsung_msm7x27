@@ -211,7 +211,7 @@ static int csum_tree_block(struct btrfs_root *root, struct extent_buffer *buf,
 	while (len > 0) {
 		err = map_private_extent_buffer(buf, offset, 32,
 					&map_token, &kaddr,
-					&map_start, &map_len, KM_USER0);
+					&map_start, &map_len);
 		if (err)
 			return 1;
 		cur_len = min(len, map_len - (offset - map_start));
@@ -219,7 +219,7 @@ static int csum_tree_block(struct btrfs_root *root, struct extent_buffer *buf,
 				      crc, cur_len);
 		len -= cur_len;
 		offset += cur_len;
-		unmap_extent_buffer(buf, map_token, KM_USER0);
+		unmap_extent_buffer(buf, map_token);
 	}
 	if (csum_size > sizeof(inline_result)) {
 		result = kzalloc(csum_size * sizeof(char), GFP_NOFS);

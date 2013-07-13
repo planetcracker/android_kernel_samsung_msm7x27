@@ -427,13 +427,13 @@ int btrfs_csum_one_bio(struct btrfs_root *root, struct inode *inode,
 			sums->bytenr = ordered->start;
 		}
 
-		data = kmap_atomic(bvec->bv_page, KM_USER0);
+		data = kmap_atomic(bvec->bv_page);
 		sector_sum->sum = ~(u32)0;
 		sector_sum->sum = btrfs_csum_data(root,
 						  data + bvec->bv_offset,
 						  sector_sum->sum,
 						  bvec->bv_len);
-		kunmap_atomic(data, KM_USER0);
+		kunmap_atomic(data);
 		btrfs_csum_final(sector_sum->sum,
 				 (char *)&sector_sum->sum);
 		sector_sum->bytenr = disk_bytenr;
@@ -808,12 +808,12 @@ next_sector:
 		int err;
 
 		if (eb_token)
-			unmap_extent_buffer(leaf, eb_token, KM_USER1);
+			unmap_extent_buffer(leaf, eb_token);
 		eb_token = NULL;
 		err = map_private_extent_buffer(leaf, (unsigned long)item,
 						csum_size,
 						&eb_token, &eb_map,
-						&map_start, &map_len, KM_USER1);
+						&map_start, &map_len);
 		if (err)
 			eb_token = NULL;
 	}
@@ -837,7 +837,7 @@ next_sector:
 		}
 	}
 	if (eb_token) {
-		unmap_extent_buffer(leaf, eb_token, KM_USER1);
+		unmap_extent_buffer(leaf, eb_token);
 		eb_token = NULL;
 	}
 	btrfs_mark_buffer_dirty(path->nodes[0]);

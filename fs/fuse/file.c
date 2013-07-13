@@ -1803,9 +1803,9 @@ long fuse_do_ioctl(struct file *file, unsigned int cmd, unsigned long arg,
 			goto out;
 
 		/* okay, copy in iovs and retry */
-		vaddr = kmap_atomic(pages[0], KM_USER0);
+		vaddr = kmap_atomic(pages[0]);
 		memcpy(page_address(iov_page), vaddr, transferred);
-		kunmap_atomic(vaddr, KM_USER0);
+		kunmap_atomic(vaddr);
 
 		in_iov = page_address(iov_page);
 		out_iov = in_iov + in_iovs;

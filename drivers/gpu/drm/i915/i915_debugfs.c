@@ -270,10 +270,10 @@ static void i915_dump_pages(struct seq_file *m, struct page **pages, int page_co
 	uint32_t *mem;
 
 	for (page = 0; page < page_count; page++) {
-		mem = kmap_atomic(pages[page], KM_USER0);
+		mem = kmap_atomic(pages[page]);
 		for (i = 0; i < PAGE_SIZE; i += 4)
 			seq_printf(m, "%08x :  %08x\n", i, mem[i / 4]);
-		kunmap_atomic(mem, KM_USER0);
+		kunmap_atomic(mem);
 	}
 }
 

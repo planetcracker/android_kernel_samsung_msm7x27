@@ -151,9 +151,9 @@ static void handle_zero_page(struct bio_vec *bvec)
 	struct page *page = bvec->bv_page;
 	void *user_mem;
 
-	user_mem = kmap_atomic(page, KM_USER0);
+	user_mem = kmap_atomic(page);
 	memset(user_mem + bvec->bv_offset, 0, bvec->bv_len);
-	kunmap_atomic(user_mem, KM_USER0);
+	kunmap_atomic(user_mem);
 
 	flush_dcache_page(page);
 }
@@ -213,7 +213,7 @@ static int zram_bvec_read(struct zram *zram, struct bio_vec *bvec,
 		/* Use  a temporary buffer to decompress the page */
 		uncmem = kmalloc(PAGE_SIZE, GFP_NOIO);
 
-	user_mem = kmap_atomic(page, KM_USER0);
+	user_mem = kmap_atomic(page);
 	if (!is_partial_io(bvec))
 		uncmem = user_mem;
 
@@ -235,7 +235,7 @@ static int zram_bvec_read(struct zram *zram, struct bio_vec *bvec,
 	flush_dcache_page(page);
 	ret = 0;
 out_cleanup:
-	kunmap_atomic(user_mem, KM_USER0);
+	kunmap_atomic(user_mem);
 	if (is_partial_io(bvec))
 		kfree(uncmem);
 	return ret;
@@ -277,19 +277,19 @@ static int zram_bvec_write(struct zram *zram, struct bio_vec *bvec, u32 index,
 	    zram_test_flag(meta, index, ZRAM_ZERO))
 		zram_free_page(zram, index);
 
-	user_mem = kmap_atomic(page, KM_USER0);
+	user_mem = kmap_atomic(page);
 
 	if (is_partial_io(bvec)) {
 		memcpy(uncmem + offset, user_mem + bvec->bv_offset,
 		       bvec->bv_len);
-		kunmap_atomic(user_mem, KM_USER0);
+		kunmap_atomic(user_mem);
 		user_mem = NULL;
 	} else {
 		uncmem = user_mem;
 	}
 
 	if (page_zero_filled(uncmem)) {
-		kunmap_atomic(user_mem, KM_USER0);
+		kunmap_atomic(user_mem);
 		if (is_partial_io(bvec))
 			kfree(uncmem);
 		zram->stats.pages_zero++;
@@ -302,7 +302,7 @@ static int zram_bvec_write(struct zram *zram, struct bio_vec *bvec, u32 index,
 			       meta->compress_workmem);
 
 	if (!is_partial_io(bvec)) {
-		kunmap_atomic(user_mem, KM_USER0);
+		kunmap_atomic(user_mem);
 		user_mem = NULL;
 		uncmem = NULL;
 	}
@@ -330,10 +330,10 @@ static int zram_bvec_write(struct zram *zram, struct bio_vec *bvec, u32 index,
 	cmem = zs_map_object(meta->mem_pool, handle, ZS_MM_WO);
 
 	if ((clen == PAGE_SIZE) && !is_partial_io(bvec))
-		src = kmap_atomic(page, KM_USER0);
+		src = kmap_atomic(page);
 	memcpy(cmem, src, clen);
 	if ((clen == PAGE_SIZE) && !is_partial_io(bvec))
-		kunmap_atomic(src, KM_USER0);
+		kunmap_atomic(src);
 
 	zs_unmap_object(meta->mem_pool, handle);
 

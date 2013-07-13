@@ -379,7 +379,7 @@ static unsigned long __bm_count_bits(struct drbd_bitmap *b, const int swap_endia
 
 	while (offset < b->bm_words) {
 		i = do_now = min_t(size_t, b->bm_words-offset, LWPP);
-		p_addr = __bm_map_paddr(b, offset, KM_USER0);
+		p_addr = __bm_map_paddr(b, offset);
 		bm = p_addr + MLPP(offset);
 		while (i--) {
 #ifndef __LITTLE_ENDIAN
@@ -388,7 +388,7 @@ static unsigned long __bm_count_bits(struct drbd_bitmap *b, const int swap_endia
 #endif
 			bits += hweight_long(*bm++);
 		}
-		__bm_unmap(p_addr, KM_USER0);
+		__bm_unmap(p_addr);
 		offset += do_now;
 		cond_resched();
 	}
@@ -799,10 +799,10 @@ static void bm_cpu_to_lel(struct drbd_bitmap *b)
 		i = 0;
 	}
 	for (; i < b->bm_number_of_pages; i++) {
-		p_addr = kmap_atomic(b->bm_pages[i], KM_USER0);
+		p_addr = kmap_atomic(b->bm_pages[i]);
 		for (bm = p_addr; bm < p_addr + PAGE_SIZE/sizeof(long); bm++)
 			*bm = cpu_to_lel(*bm);
-		kunmap_atomic(p_addr, KM_USER0);
+		kunmap_atomic(p_addr);
 	}
 }
 # endif
@@ -1007,13 +1007,13 @@ unsigned long drbd_bm_find_next_zero(struct drbd_conf *mdev, unsigned long bm_fo
 unsigned long _drbd_bm_find_next(struct drbd_conf *mdev, unsigned long bm_fo)
 {
 	/* WARN_ON(!bm_is_locked(mdev)); */
-	return __bm_find_next(mdev, bm_fo, 0, KM_USER1);
+	return __bm_find_next(mdev, bm_fo, 0);
 }
 
 unsigned long _drbd_bm_find_next_zero(struct drbd_conf *mdev, unsigned long bm_fo)
 {
 	/* WARN_ON(!bm_is_locked(mdev)); */
-	return __bm_find_next(mdev, bm_fo, 1, KM_USER1);
+	return __bm_find_next(mdev, bm_fo, 1);
 }
 
 /* returns number of bits actually changed.
@@ -1099,13 +1099,13 @@ static inline void bm_set_full_words_within_one_page(struct drbd_bitmap *b,
 {
 	int i;
 	int bits;
-	unsigned long *paddr = kmap_atomic(b->bm_pages[page_nr], KM_USER0);
+	unsigned long *paddr = kmap_atomic(b->bm_pages[page_nr]);
 	for (i = first_word; i < last_word; i++) {
 		bits = hweight_long(paddr[i]);
 		paddr[i] = ~0UL;
 		b->bm_set += BITS_PER_LONG - bits;
 	}
-	kunmap_atomic(paddr, KM_USER0);
+	kunmap_atomic(paddr);
 }
 
 /* Same thing as drbd_bm_set_bits, but without taking the spin_lock_irqsave.
@@ -1132,7 +1132,7 @@ void _drbd_bm_set_bits(struct drbd_conf *mdev, const unsigned long s, const unsi
 
 	if (e - s <= 3*BITS_PER_LONG) {
 		/* don't bother; el and sl may even be wrong. */
-		__bm_change_bits_to(mdev, s, e, 1, KM_USER0);
+		__bm_change_bits_to(mdev, s, e, 1);
 		return;
 	}
 
@@ -1140,7 +1140,7 @@ void _drbd_bm_set_bits(struct drbd_conf *mdev, const unsigned long s, const unsi
 
 	/* bits filling the current long */
 	if (sl)
-		__bm_change_bits_to(mdev, s, sl-1, 1, KM_USER0);
+		__bm_change_bits_to(mdev, s, sl-1, 1);
 
 	first_page = sl >> (3 + PAGE_SHIFT);
 	last_page = el >> (3 + PAGE_SHIFT);
@@ -1167,7 +1167,7 @@ void _drbd_bm_set_bits(struct drbd_conf *mdev, const unsigned long s, const unsi
 	 * it would trigger an assert in __bm_change_bits_to()
 	 */
 	if (el <= e)
-		__bm_change_bits_to(mdev, el, e, 1, KM_USER0);
+		__bm_change_bits_to(mdev, el, e, 1);
 }
 
 /* returns bit state

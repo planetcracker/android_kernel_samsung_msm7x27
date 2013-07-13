@@ -1585,7 +1585,7 @@ nilfs_copy_replace_page_buffers(struct page *page, struct list_head *out)
 		return -ENOMEM;
 
 	bh2 = page_buffers(clone_page);
-	kaddr = kmap_atomic(page, KM_USER0);
+	kaddr = kmap_atomic(page);
 	do {
 		if (list_empty(&bh->b_assoc_buffers))
 			continue;
@@ -1596,7 +1596,7 @@ nilfs_copy_replace_page_buffers(struct page *page, struct list_head *out)
 		list_replace(&bh->b_assoc_buffers, &bh2->b_assoc_buffers);
 		list_add_tail(&bh->b_assoc_buffers, out);
 	} while (bh = bh->b_this_page, bh2 = bh2->b_this_page, bh != head);
-	kunmap_atomic(kaddr, KM_USER0);
+	kunmap_atomic(kaddr);
 
 	if (!TestSetPageWriteback(clone_page))
 		inc_zone_page_state(clone_page, NR_WRITEBACK);

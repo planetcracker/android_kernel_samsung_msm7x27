@@ -166,11 +166,11 @@ fast_shmem_read(struct page **pages,
 	char __iomem *vaddr;
 	int unwritten;
 
-	vaddr = kmap_atomic(pages[page_base >> PAGE_SHIFT], KM_USER0);
+	vaddr = kmap_atomic(pages[page_base >> PAGE_SHIFT]);
 	if (vaddr == NULL)
 		return -ENOMEM;
 	unwritten = __copy_to_user_inatomic(data, vaddr + page_offset, length);
-	kunmap_atomic(vaddr, KM_USER0);
+	kunmap_atomic(vaddr);
 
 	if (unwritten)
 		return -EFAULT;
@@ -558,11 +558,11 @@ fast_shmem_write(struct page **pages,
 	char __iomem *vaddr;
 	unsigned long unwritten;
 
-	vaddr = kmap_atomic(pages[page_base >> PAGE_SHIFT], KM_USER0);
+	vaddr = kmap_atomic(pages[page_base >> PAGE_SHIFT]);
 	if (vaddr == NULL)
 		return -ENOMEM;
 	unwritten = __copy_from_user_inatomic(vaddr + page_offset, data, length);
-	kunmap_atomic(vaddr, KM_USER0);
+	kunmap_atomic(vaddr);
 
 	if (unwritten)
 		return -EFAULT;
@@ -4883,11 +4883,11 @@ void i915_gem_detach_phys_object(struct drm_device *dev,
 	page_count = obj->size / PAGE_SIZE;
 
 	for (i = 0; i < page_count; i++) {
-		char *dst = kmap_atomic(obj_priv->pages[i], KM_USER0);
+		char *dst = kmap_atomic(obj_priv->pages[i]);
 		char *src = obj_priv->phys_obj->handle->vaddr + (i * PAGE_SIZE);
 
 		memcpy(dst, src, PAGE_SIZE);
-		kunmap_atomic(dst, KM_USER0);
+		kunmap_atomic(dst);
 	}
 	drm_clflush_pages(obj_priv->pages, page_count);
 	drm_agp_chipset_flush(dev);
@@ -4943,11 +4943,11 @@ i915_gem_attach_phys_object(struct drm_device *dev,
 	page_count = obj->size / PAGE_SIZE;
 
 	for (i = 0; i < page_count; i++) {
-		char *src = kmap_atomic(obj_priv->pages[i], KM_USER0);
+		char *src = kmap_atomic(obj_priv->pages[i]);
 		char *dst = obj_priv->phys_obj->handle->vaddr + (i * PAGE_SIZE);
 
 		memcpy(dst, src, PAGE_SIZE);
-		kunmap_atomic(src, KM_USER0);
+		kunmap_atomic(src);
 	}
 
 	i915_gem_object_put_pages(obj);

@@ -448,10 +448,10 @@ int btrfs_zlib_decompress_biovec(struct page **pages_in,
 			bytes = min(PAGE_CACHE_SIZE - pg_offset,
 				    PAGE_CACHE_SIZE - buf_offset);
 			bytes = min(bytes, working_bytes);
-			kaddr = kmap_atomic(page_out, KM_USER0);
+			kaddr = kmap_atomic(page_out);
 			memcpy(kaddr + pg_offset, workspace->buf + buf_offset,
 			       bytes);
-			kunmap_atomic(kaddr, KM_USER0);
+			kunmap_atomic(kaddr);
 			flush_dcache_page(page_out);
 
 			pg_offset += bytes;
@@ -604,9 +604,9 @@ int btrfs_zlib_decompress(unsigned char *data_in,
 			    PAGE_CACHE_SIZE - buf_offset);
 		bytes = min(bytes, bytes_left);
 
-		kaddr = kmap_atomic(dest_page, KM_USER0);
+		kaddr = kmap_atomic(dest_page);
 		memcpy(kaddr + pg_offset, workspace->buf + buf_offset, bytes);
-		kunmap_atomic(kaddr, KM_USER0);
+		kunmap_atomic(kaddr);
 
 		pg_offset += bytes;
 		bytes_left -= bytes;

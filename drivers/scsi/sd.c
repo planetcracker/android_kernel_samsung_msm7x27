@@ -435,7 +435,7 @@ static int sd_prepare_discard(struct request *rq)
 	memset(rq->cmd, 0, rq->cmd_len);
 
 	if (sdkp->unmap) {
-		char *buf = kmap_atomic(bio_page(bio), KM_USER0);
+		char *buf = kmap_atomic(bio_page(bio));
 
 		rq->cmd[0] = UNMAP;
 		rq->cmd[8] = 24;
@@ -449,7 +449,7 @@ static int sd_prepare_discard(struct request *rq)
 		put_unaligned_be64(sector, &buf[8]);
 		put_unaligned_be32(num, &buf[16]);
 
-		kunmap_atomic(buf, KM_USER0);
+		kunmap_atomic(buf);
 	} else {
 		rq->cmd[0] = WRITE_SAME_16;
 		rq->cmd[1] = 0x8; /* UNMAP */

@@ -536,7 +536,7 @@ nfs3_xdr_readdirres(struct rpc_rqst *req, __be32 *p, struct nfs3_readdirres *res
 	if (pglen > recvd)
 		pglen = recvd;
 	page = rcvbuf->pages;
-	kaddr = p = kmap_atomic(*page, KM_USER0);
+	kaddr = p = kmap_atomic(*page);
 	end = (__be32 *)((char *)p + pglen);
 	entry = p;
 
@@ -594,7 +594,7 @@ nfs3_xdr_readdirres(struct rpc_rqst *req, __be32 *p, struct nfs3_readdirres *res
 		entry[1] = 1;
 	}
  out:
-	kunmap_atomic(kaddr, KM_USER0);
+	kunmap_atomic(kaddr);
 	return nr;
  short_pkt:
 	/*
@@ -858,9 +858,9 @@ nfs3_xdr_readlinkres(struct rpc_rqst *req, __be32 *p, struct nfs_fattr *fattr)
 	}
 
 	/* NULL terminate the string we got */
-	kaddr = (char*)kmap_atomic(rcvbuf->pages[0], KM_USER0);
+	kaddr = (char*)kmap_atomic(rcvbuf->pages[0]);
 	kaddr[len+rcvbuf->page_base] = '\0';
-	kunmap_atomic(kaddr, KM_USER0);
+	kunmap_atomic(kaddr);
 	return 0;
 }
 

@@ -885,14 +885,14 @@ static noinline int generic_bin_search(struct extent_buffer *eb,
 		    (offset + sizeof(struct btrfs_disk_key)) >
 		    map_start + map_len) {
 			if (map_token) {
-				unmap_extent_buffer(eb, map_token, KM_USER0);
+				unmap_extent_buffer(eb, map_token);
 				map_token = NULL;
 			}
 
 			err = map_private_extent_buffer(eb, offset,
 						sizeof(struct btrfs_disk_key),
 						&map_token, &kaddr,
-						&map_start, &map_len, KM_USER0);
+						&map_start, &map_len);
 
 			if (!err) {
 				tmp = (struct btrfs_disk_key *)(kaddr + offset -
@@ -916,13 +916,13 @@ static noinline int generic_bin_search(struct extent_buffer *eb,
 		else {
 			*slot = mid;
 			if (map_token)
-				unmap_extent_buffer(eb, map_token, KM_USER0);
+				unmap_extent_buffer(eb, map_token);
 			return 0;
 		}
 	}
 	*slot = low;
 	if (map_token)
-		unmap_extent_buffer(eb, map_token, KM_USER0);
+		unmap_extent_buffer(eb, map_token);
 	return 1;
 }
 
@@ -2374,7 +2374,7 @@ static noinline int __push_leaf_right(struct btrfs_trans_handle *trans,
 		i--;
 	}
 	if (left->map_token) {
-		unmap_extent_buffer(left, left->map_token, KM_USER1);
+		unmap_extent_buffer(left, left->map_token);
 		left->map_token = NULL;
 	}
 
@@ -2430,7 +2430,7 @@ static noinline int __push_leaf_right(struct btrfs_trans_handle *trans,
 	}
 
 	if (right->map_token) {
-		unmap_extent_buffer(right, right->map_token, KM_USER1);
+		unmap_extent_buffer(right, right->map_token);
 		right->map_token = NULL;
 	}
 	left_nritems -= push_items;
@@ -2599,7 +2599,7 @@ static noinline int __push_leaf_left(struct btrfs_trans_handle *trans,
 	}
 
 	if (right->map_token) {
-		unmap_extent_buffer(right, right->map_token, KM_USER1);
+		unmap_extent_buffer(right, right->map_token);
 		right->map_token = NULL;
 	}
 
@@ -2646,7 +2646,7 @@ static noinline int __push_leaf_left(struct btrfs_trans_handle *trans,
 	}
 	btrfs_set_header_nritems(left, old_left_nritems + push_items);
 	if (left->map_token) {
-		unmap_extent_buffer(left, left->map_token, KM_USER1);
+		unmap_extent_buffer(left, left->map_token);
 		left->map_token = NULL;
 	}
 
@@ -2688,7 +2688,7 @@ static noinline int __push_leaf_left(struct btrfs_trans_handle *trans,
 		btrfs_set_item_offset(right, item, push_space);
 	}
 	if (right->map_token) {
-		unmap_extent_buffer(right, right->map_token, KM_USER1);
+		unmap_extent_buffer(right, right->map_token);
 		right->map_token = NULL;
 	}
 
@@ -2841,7 +2841,7 @@ static noinline int copy_for_split(struct btrfs_trans_handle *trans,
 	}
 
 	if (right->map_token) {
-		unmap_extent_buffer(right, right->map_token, KM_USER1);
+		unmap_extent_buffer(right, right->map_token);
 		right->map_token = NULL;
 	}
 
@@ -3379,7 +3379,7 @@ int btrfs_truncate_item(struct btrfs_trans_handle *trans,
 	}
 
 	if (leaf->map_token) {
-		unmap_extent_buffer(leaf, leaf->map_token, KM_USER1);
+		unmap_extent_buffer(leaf, leaf->map_token);
 		leaf->map_token = NULL;
 	}
 
@@ -3495,7 +3495,7 @@ int btrfs_extend_item(struct btrfs_trans_handle *trans,
 	}
 
 	if (leaf->map_token) {
-		unmap_extent_buffer(leaf, leaf->map_token, KM_USER1);
+		unmap_extent_buffer(leaf, leaf->map_token);
 		leaf->map_token = NULL;
 	}
 
@@ -3618,7 +3618,7 @@ int btrfs_insert_some_items(struct btrfs_trans_handle *trans,
 			btrfs_set_item_offset(leaf, item, ioff - total_data);
 		}
 		if (leaf->map_token) {
-			unmap_extent_buffer(leaf, leaf->map_token, KM_USER1);
+			unmap_extent_buffer(leaf, leaf->map_token);
 			leaf->map_token = NULL;
 		}
 
@@ -3733,7 +3733,7 @@ setup_items_for_insert(struct btrfs_trans_handle *trans,
 			btrfs_set_item_offset(leaf, item, ioff - total_data);
 		}
 		if (leaf->map_token) {
-			unmap_extent_buffer(leaf, leaf->map_token, KM_USER1);
+			unmap_extent_buffer(leaf, leaf->map_token);
 			leaf->map_token = NULL;
 		}
 
@@ -3962,7 +3962,7 @@ int btrfs_del_items(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 		}
 
 		if (leaf->map_token) {
-			unmap_extent_buffer(leaf, leaf->map_token, KM_USER1);
+			unmap_extent_buffer(leaf, leaf->map_token);
 			leaf->map_token = NULL;
 		}
 

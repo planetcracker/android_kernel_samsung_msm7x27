@@ -141,17 +141,17 @@ static inline void shmem_dir_free(struct page *page)
 
 static struct page **shmem_dir_map(struct page *page)
 {
-	return (struct page **)kmap_atomic(page, KM_USER0);
+	return (struct page **)kmap_atomic(page);
 }
 
 static inline void shmem_dir_unmap(struct page **dir)
 {
-	kunmap_atomic(dir, KM_USER0);
+	kunmap_atomic(dir);
 }
 
 static swp_entry_t *shmem_swp_map(struct page *page)
 {
-	return (swp_entry_t *)kmap_atomic(page, KM_USER1);
+	return (swp_entry_t *)kmap_atomic(page);
 }
 
 static inline void shmem_swp_balance_unmap(void)
@@ -163,12 +163,12 @@ static inline void shmem_swp_balance_unmap(void)
 	 * What kmap_atomic of a lowmem page does depends on config
 	 * and architecture, so pretend to kmap_atomic some lowmem page.
 	 */
-	(void) kmap_atomic(ZERO_PAGE(0), KM_USER1);
+	(void) kmap_atomic(ZERO_PAGE(0));
 }
 
 static inline void shmem_swp_unmap(swp_entry_t *entry)
 {
-	kunmap_atomic(entry, KM_USER1);
+	kunmap_atomic(entry);
 }
 
 static inline struct shmem_sb_info *SHMEM_SB(struct super_block *sb)
@@ -1984,9 +1984,9 @@ static int shmem_symlink(struct inode *dir, struct dentry *dentry, const char *s
 		}
 		inode->i_mapping->a_ops = &shmem_aops;
 		inode->i_op = &shmem_symlink_inode_operations;
-		kaddr = kmap_atomic(page, KM_USER0);
+		kaddr = kmap_atomic(page);
 		memcpy(kaddr, symname, len);
-		kunmap_atomic(kaddr, KM_USER0);
+		kunmap_atomic(kaddr);
 		set_page_dirty(page);
 		unlock_page(page);
 		page_cache_release(page);

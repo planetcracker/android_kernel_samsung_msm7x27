@@ -68,7 +68,7 @@ u##bits btrfs_##name(struct extent_buffer *eb,				\
 		err = map_extent_buffer(eb, offset,			\
 				sizeof(((type *)0)->member),		\
 				&map_token, &kaddr,			\
-				&map_start, &map_len, KM_USER1);	\
+				&map_start, &map_len);	\
 		if (err) {						\
 			__le##bits leres;				\
 			read_eb_member(eb, s, type, member, &leres);	\
@@ -77,7 +77,7 @@ u##bits btrfs_##name(struct extent_buffer *eb,				\
 		p = (type *)(kaddr + part_offset - map_start);		\
 		res = le##bits##_to_cpu(p->member);			\
 		if (unmap_on_exit)					\
-			unmap_extent_buffer(eb, map_token, KM_USER1);	\
+			unmap_extent_buffer(eb, map_token);	\
 		return res;						\
 	}								\
 }									\
@@ -105,7 +105,7 @@ void btrfs_set_##name(struct extent_buffer *eb,				\
 		err = map_extent_buffer(eb, offset,			\
 				sizeof(((type *)0)->member),		\
 				&map_token, &kaddr,			\
-				&map_start, &map_len, KM_USER1);	\
+				&map_start, &map_len);	\
 		if (err) {						\
 			__le##bits val2;				\
 			val2 = cpu_to_le##bits(val);			\
@@ -115,7 +115,7 @@ void btrfs_set_##name(struct extent_buffer *eb,				\
 		p = (type *)(kaddr + part_offset - map_start);		\
 		p->member = cpu_to_le##bits(val);			\
 		if (unmap_on_exit)					\
-			unmap_extent_buffer(eb, map_token, KM_USER1);	\
+			unmap_extent_buffer(eb, map_token);	\
 	}								\
 }
 
@@ -131,7 +131,7 @@ void btrfs_node_key(struct extent_buffer *eb,
 			sizeof(*disk_key));
 		return;
 	} else if (eb->map_token) {
-		unmap_extent_buffer(eb, eb->map_token, KM_USER1);
+		unmap_extent_buffer(eb, eb->map_token);
 		eb->map_token = NULL;
 	}
 	read_eb_member(eb, (struct btrfs_key_ptr *)ptr,

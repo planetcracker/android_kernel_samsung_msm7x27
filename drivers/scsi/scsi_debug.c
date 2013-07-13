@@ -2262,7 +2262,7 @@ static int resp_xdwriteread(struct scsi_cmnd *scp, unsigned long long lba,
 
 	offset = 0;
 	for_each_sg(sdb->table.sgl, sg, sdb->table.nents, i) {
-		kaddr = (unsigned char *)kmap_atomic(sg_page(sg), KM_USER0);
+		kaddr = (unsigned char *)kmap_atomic(sg_page(sg));
 		if (!kaddr)
 			goto out;
 
@@ -2270,7 +2270,7 @@ static int resp_xdwriteread(struct scsi_cmnd *scp, unsigned long long lba,
 			*(kaddr + sg->offset + j) ^= *(buf + offset + j);
 
 		offset += sg->length;
-		kunmap_atomic(kaddr, KM_USER0);
+		kunmap_atomic(kaddr);
 	}
 	ret = 0;
 out:

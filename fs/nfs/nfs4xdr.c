@@ -4177,7 +4177,7 @@ static int decode_readdir(struct xdr_stream *xdr, struct rpc_rqst *req, struct n
 	xdr_read_pages(xdr, pglen);
 
 	BUG_ON(pglen + readdir->pgbase > PAGE_CACHE_SIZE);
-	kaddr = p = kmap_atomic(page, KM_USER0);
+	kaddr = p = kmap_atomic(page);
 	end = p + ((pglen + readdir->pgbase) >> 2);
 	entry = p;
 
@@ -4222,7 +4222,7 @@ static int decode_readdir(struct xdr_stream *xdr, struct rpc_rqst *req, struct n
 		entry[1] = 1;
 	}
 out:
-	kunmap_atomic(kaddr, KM_USER0);
+	kunmap_atomic(kaddr);
 	return 0;
 short_pkt:
 	/*
@@ -4239,7 +4239,7 @@ short_pkt:
 	if (nr)
 		goto out;
 err_unmap:
-	kunmap_atomic(kaddr, KM_USER0);
+	kunmap_atomic(kaddr);
 	return -errno_NFSERR_IO;
 }
 
@@ -4281,9 +4281,9 @@ static int decode_readlink(struct xdr_stream *xdr, struct rpc_rqst *req)
 	 * and and null-terminate the text (the VFS expects
 	 * null-termination).
 	 */
-	kaddr = (char *)kmap_atomic(rcvbuf->pages[0], KM_USER0);
+	kaddr = (char *)kmap_atomic(rcvbuf->pages[0]);
 	kaddr[len+rcvbuf->page_base] = '\0';
-	kunmap_atomic(kaddr, KM_USER0);
+	kunmap_atomic(kaddr);
 	return 0;
 out_overflow:
 	print_overflow_msg(__func__, xdr);
