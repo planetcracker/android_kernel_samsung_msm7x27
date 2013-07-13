@@ -24,6 +24,7 @@ obj-$(CONFIG_CPU_FREQ_GOV_LULZACTIVEQ)	+= cpufreq_lulzactiveq.o
 obj-$(CONFIG_CPU_FREQ_GOV_LAGFREE)      += cpufreq_lagfree.o
 obj-$(CONFIG_CPU_FREQ_GOV_ONDEMANDX)	+= cpufreq_ondemandx.o
 obj-$(CONFIG_CPU_FREQ_GOV_LAZY) 	+= cpufreq_lazy.o
+obj-$(CONFIG_CPU_FREQ_GOV_ADAPTIVE) 	+= cpufreq_adaptive.o
 obj-$(CONFIG_CPU_FREQ_GOV_WHEATLEYPLUS)  += cpufreq_wheatleyplus.o
 
 # CPUfreq cross-arch helpers
