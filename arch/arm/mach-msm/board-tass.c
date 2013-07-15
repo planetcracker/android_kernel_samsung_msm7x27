@@ -1921,87 +1921,6 @@ void msm_serial_debug_init(unsigned int base, int irq,
 	|| defined(CONFIG_MMC_MSM_SDC3_SUPPORT)\
 	|| defined(CONFIG_MMC_MSM_SDC4_SUPPORT))
 
-static void sdcc_gpio_init(void)
-{
-#ifdef CONFIG_MMC_MSM_CARD_HW_DETECTION
-	int rc = 0;
-	if (gpio_request(49, "sdc1_status_irq"))
-		pr_err("failed to request gpio sdc1_status_irq\n");
-	rc = gpio_tlmm_config(GPIO_CFG(49, 0, GPIO_CFG_INPUT, GPIO_CFG_PULL_UP,
-				GPIO_CFG_2MA), GPIO_CFG_ENABLE);
-	if (rc)
-		printk(KERN_ERR "%s: Failed to configure GPIO %d\n",
-				__func__, rc);
-#endif
-	/* SDC1 GPIOs */
-#ifdef CONFIG_MMC_MSM_SDC1_SUPPORT
-	if (gpio_request(51, "sdc1_data_3"))
-		pr_err("failed to request gpio sdc1_data_3\n");
-	if (gpio_request(52, "sdc1_data_2"))
-		pr_err("failed to request gpio sdc1_data_2\n");
-	if (gpio_request(53, "sdc1_data_1"))
-		pr_err("failed to request gpio sdc1_data_1\n");
-	if (gpio_request(54, "sdc1_data_0"))
-		pr_err("failed to request gpio sdc1_data_0\n");
-	if (gpio_request(55, "sdc1_cmd"))
-		pr_err("failed to request gpio sdc1_cmd\n");
-	if (gpio_request(56, "sdc1_clk"))
-		pr_err("failed to request gpio sdc1_clk\n");
-#endif
-	if (machine_is_msm7x25_ffa())
-		return;
-
-	/* SDC2 GPIOs */
-#ifdef CONFIG_MMC_MSM_SDC2_SUPPORT
-	if (gpio_request(62, "sdc2_clk"))
-		pr_err("failed to request gpio sdc2_clk\n");
-	if (gpio_request(63, "sdc2_cmd"))
-		pr_err("failed to request gpio sdc2_cmd\n");
-	if (gpio_request(64, "sdc2_data_3"))
-		pr_err("failed to request gpio sdc2_data_3\n");
-	if (gpio_request(65, "sdc2_data_2"))
-		pr_err("failed to request gpio sdc2_data_2\n");
-	if (gpio_request(66, "sdc2_data_1"))
-		pr_err("failed to request gpio sdc2_data_1\n");
-	if (gpio_request(67, "sdc2_data_0"))
-		pr_err("failed to request gpio sdc2_data_0\n");
-#endif
-	if (machine_is_msm7x27_ffa())
-		return;
-
-	/* SDC3 GPIOs */
-#ifdef CONFIG_MMC_MSM_SDC3_SUPPORT
-	if (gpio_request(88, "sdc3_clk"))
-		pr_err("failed to request gpio sdc3_clk\n");
-	if (gpio_request(89, "sdc3_cmd"))
-		pr_err("failed to request gpio sdc3_cmd\n");
-	if (gpio_request(90, "sdc3_data_3"))
-		pr_err("failed to request gpio sdc3_data_3\n");
-	if (gpio_request(91, "sdc3_data_2"))
-		pr_err("failed to request gpio sdc3_data_2\n");
-	if (gpio_request(92, "sdc3_data_1"))
-		pr_err("failed to request gpio sdc3_data_1\n");
-	if (gpio_request(93, "sdc3_data_0"))
-		pr_err("failed to request gpio sdc3_data_0\n");
-#endif
-
-	/* SDC4 GPIOs */
-#ifdef CONFIG_MMC_MSM_SDC4_SUPPORT
-	if (gpio_request(19, "sdc4_data_3"))
-		pr_err("failed to request gpio sdc4_data_3\n");
-	if (gpio_request(20, "sdc4_data_2"))
-		pr_err("failed to request gpio sdc4_data_2\n");
-	if (gpio_request(21, "sdc4_data_1"))
-		pr_err("failed to request gpio sdc4_data_1\n");
-	if (gpio_request(107, "sdc4_cmd"))
-		pr_err("failed to request gpio sdc4_cmd\n");
-	if (gpio_request(108, "sdc4_data_0"))
-		pr_err("failed to request gpio sdc4_data_0\n");
-	if (gpio_request(109, "sdc4_clk"))
-		pr_err("failed to request gpio sdc4_clk\n");
-#endif
-}
-
 
 static unsigned long vreg_sts, gpio_sts;
 static struct vreg *vreg_mmc;
@@ -2422,6 +2341,8 @@ static struct mmc_platform_data msm7x2x_sdc4_data = {
 
 static void __init msm7x2x_init_mmc(void)
 {
+	int rc = 0;
+
 	if (!machine_is_msm7x25_ffa() && !machine_is_msm7x27_ffa()) {
 		vreg_mmc = vreg_get(NULL, "ldo16");
 		vreg_mmc2 = vreg_get(NULL, "ldo15");
@@ -2441,7 +2362,6 @@ static void __init msm7x2x_init_mmc(void)
 
 
 #ifdef CONFIG_MMC_MSM_CARD_HW_DETECTION
-	int rc = 0;
 	if (gpio_request(49, "sdc1_status_irq"))
 		pr_err("failed to request gpio sdc1_status_irq\n");
 	rc = gpio_tlmm_config(GPIO_CFG(49, 0, GPIO_CFG_INPUT, GPIO_CFG_PULL_UP, GPIO_CFG_2MA), GPIO_CFG_ENABLE);

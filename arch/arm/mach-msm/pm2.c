@@ -1598,181 +1598,12 @@ arch_idle_exit:
  */
 
 // hsil
-extern what_clk[103];
-extern req_clk[103];
+extern int what_clk[103];
+extern int req_clk[103];
 //extern void mdp_pipe_ctrl(MDP_BLOCK_TYPE block, MDP_BLOCK_POWER_STATE state,boolean isr);
 
 
-int msm_pm_idle_enter(suspend_state_t state)
-{
-bool allow[MSM_PM_SLEEP_MODE_NR];
-	uint32_t sleep_limit = SLEEP_LIMIT_NONE;
-	int ret;
-	int i;
-	static struct clk *tmp_clk;
-
-#ifdef CONFIG_MSM_IDLE_STATS
-	DECLARE_BITMAP(clk_ids, MAX_NR_CLKS);
-	int64_t period = 0;
-	int64_t time = 0;
-	
-	// hsil
-#if 0	
-	for (i=0; i<5; i++)
-		mdp_pipe_ctrl(MDP_DMA2_BLOCK, MDP_BLOCK_POWER_OFF, FALSE);
-	mdp_pipe_ctrl(MDP_MASTER_BLOCK, MDP_BLOCK_POWER_OFF, FALSE);
-#endif
-        for (i=0; i<103; i++)
-        {
-                if (what_clk[i] == 1)
-                {
-                        printk("%s : what clk : #%d clock is alive!!!!!!!!!!!!!!!!!!!!!!\n", __func__, i);
-                }
-                if (req_clk[i] == 1)
-		{
-                        printk("%s : req clk : #%d clock is alive!!!!!!!!!!!!!!!!!!!!!!\n", __func__, i);
-                        if (i==42)
-                        {
-                                tmp_clk = clk_get(NULL, "mdp_lcdc_pclk_clk");
-                                clk_disable(tmp_clk);   
-                        }
-                        if (i==43)
-                        {
-                                tmp_clk = clk_get(NULL, "mdp_lcdc_pad_pclk_clk");
-                                clk_disable(tmp_clk);   
-                        }
-		}
-        }
-	
-	time = msm_timer_get_sclk_time(&period);
-	ret = msm_clock_require_tcxo(clk_ids, MAX_NR_CLKS);
-//	printk("++++++++++++++++++++++++++++++++++++\n");
-//	printk("[HSIL] %s : ret = %d\n", __func__, ret);
-//	printk("++++++++++++++++++++++++++++++++++++\n");
-
-#elif defined(CONFIG_CLOCK_BASED_SLEEP_LIMIT)
-	ret = msm_clock_require_tcxo(NULL, 0);
-#endif /* CONFIG_MSM_IDLE_STATS */
-
-#ifdef CONFIG_CLOCK_BASED_SLEEP_LIMIT
-	if (ret)
-		sleep_limit = SLEEP_LIMIT_NO_TCXO_SHUTDOWN;
-#endif
-
-	MSM_PM_DPRINTK(MSM_PM_DEBUG_SUSPEND, KERN_INFO,
-		"%s(): sleep limit %u\n", __func__, sleep_limit);
-
-	for (i = 0; i < ARRAY_SIZE(allow); i++)
-		allow[i] = true;
-
-	switch (msm_pm_sleep_mode) {
-	case MSM_PM_SLEEP_MODE_WAIT_FOR_INTERRUPT:
-		allow[MSM_PM_SLEEP_MODE_RAMP_DOWN_AND_WAIT_FOR_INTERRUPT] =
-			false;
-		/* fall through */
-	case MSM_PM_SLEEP_MODE_RAMP_DOWN_AND_WAIT_FOR_INTERRUPT:
-		allow[MSM_PM_SLEEP_MODE_POWER_COLLAPSE_STANDALONE] = false;
-		/* fall through */
-	case MSM_PM_SLEEP_MODE_POWER_COLLAPSE_STANDALONE:
-		allow[MSM_PM_SLEEP_MODE_APPS_SLEEP] = false;
-		/* fall through */
-	case MSM_PM_SLEEP_MODE_APPS_SLEEP:
-		allow[MSM_PM_SLEEP_MODE_POWER_COLLAPSE_NO_XO_SHUTDOWN] = false;
-		allow[MSM_PM_SLEEP_MODE_POWER_COLLAPSE] = false;
-		/* fall through */
-	case MSM_PM_SLEEP_MODE_POWER_COLLAPSE_SUSPEND:
-	case MSM_PM_SLEEP_MODE_POWER_COLLAPSE:
-		break;
-	default:
-		printk(KERN_ERR "suspend sleep mode is invalid: %d\n",
-			msm_pm_sleep_mode);
-		return -EINVAL;
-	}
-
-	for (i = 0; i < ARRAY_SIZE(allow); i++) {
-		struct msm_pm_platform_data *mode = &msm_pm_modes[i];
-		if (!mode->supported || !mode->suspend_enabled)
-			allow[i] = false;
-	}
-
-	ret = 0;
-
-	if (allow[MSM_PM_SLEEP_MODE_POWER_COLLAPSE] ||
-		allow[MSM_PM_SLEEP_MODE_POWER_COLLAPSE_NO_XO_SHUTDOWN]) {
-#ifdef CONFIG_MSM_IDLE_STATS
-		enum msm_pm_time_stats_id id;
-		int64_t end_time;
-#endif
-
-		clock_debug_print_enabled();
-
-#ifdef CONFIG_MSM_SLEEP_TIME_OVERRIDE
-		if (msm_pm_sleep_time_override > 0) {
-			int64_t ns;
-			ns = NSEC_PER_SEC * (int64_t)msm_pm_sleep_time_override;
-			msm_pm_set_max_sleep_time(ns);
-			msm_pm_sleep_time_override = 0;
-		}
-#endif
-		if (!allow[MSM_PM_SLEEP_MODE_POWER_COLLAPSE])
-			sleep_limit = SLEEP_LIMIT_NO_TCXO_SHUTDOWN;
-
-#if defined(CONFIG_MSM_MEMORY_LOW_POWER_MODE_SUSPEND_ACTIVE)
-		sleep_limit |= SLEEP_RESOURCE_MEMORY_BIT1;
-#elif defined(CONFIG_MSM_MEMORY_LOW_POWER_MODE_SUSPEND_RETENTION)
-		sleep_limit |= SLEEP_RESOURCE_MEMORY_BIT0;
-#elif defined(CONFIG_MSM_MEMORY_LOW_POWER_MODE_SUSPEND_DEEP_POWER_DOWN)
-		if (get_msm_migrate_pages_status() != MEM_OFFLINE)
-			sleep_limit |= SLEEP_RESOURCE_MEMORY_BIT0;
-#endif
-
-		for (i = 0; i < 30 && msm_pm_modem_busy(); i++)
-			udelay(500);
-
-		ret = msm_pm_power_collapse(
-			false, msm_pm_max_sleep_time, sleep_limit);
-
-#ifdef CONFIG_MSM_IDLE_STATS
-		if (ret)
-			id = MSM_PM_STAT_FAILED_SUSPEND;
-		else {
-			id = MSM_PM_STAT_SUSPEND;
-			msm_pm_sleep_limit = sleep_limit;
-			bitmap_copy(msm_pm_clocks_no_tcxo_shutdown, clk_ids,
-				MAX_NR_CLKS);
-		}
-
-		if (time != 0) {
-			end_time = msm_timer_get_sclk_time(NULL);
-			if (end_time != 0) {
-				time = end_time - time;
-				if (time < 0)
-					time += period;
-			} else
-				time = 0;
-		}
-
-		msm_pm_add_stat(id, time);
-#endif
-	} else if (allow[MSM_PM_SLEEP_MODE_POWER_COLLAPSE_STANDALONE]) {
-		ret = msm_pm_power_collapse_standalone();
-	} else if (allow[MSM_PM_SLEEP_MODE_RAMP_DOWN_AND_WAIT_FOR_INTERRUPT]) {
-		ret = msm_pm_swfi(true);
-		if (ret)
-			while (!msm_irq_pending())
-				udelay(1);
-	} else if (allow[MSM_PM_SLEEP_MODE_WAIT_FOR_INTERRUPT]) {
-		msm_pm_swfi(false);
-	}
-
-	MSM_PM_DPRINTK(MSM_PM_DEBUG_SUSPEND, KERN_INFO,
-		"%s(): return %d\n", __func__, ret);
-
-	return ret;
-}
-
-
-static int msm_pm_enter(suspend_state_t state)
+int msm_pm_enter(suspend_state_t state)
 {
 	bool allow[MSM_PM_SLEEP_MODE_NR];
 	uint32_t sleep_limit = SLEEP_LIMIT_NONE;
@@ -1939,6 +1770,8 @@ static int msm_pm_enter(suspend_state_t state)
 
 	return ret;
 }
+
+EXPORT_SYMBOL(msm_pm_enter);
 
 static struct platform_suspend_ops msm_pm_ops = {
 	.enter = msm_pm_enter,

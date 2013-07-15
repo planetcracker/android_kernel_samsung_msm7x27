@@ -106,7 +106,7 @@ static int msm_cpuidle_enter(
 	atomic_notifier_call_chain(head, MSM_CPUIDLE_STATE_ENTER, NULL);
 #endif
 
-	ret = msm_pm_idle_enter((enum msm_pm_sleep_mode) (state->driver_data));
+	ret = msm_pm_enter((enum msm_pm_sleep_mode) (state->driver_data));
 
 #ifdef CONFIG_MSM_SLEEP_STATS
 	post_idle(dev->cpu, ret);

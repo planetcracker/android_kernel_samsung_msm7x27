@@ -55,7 +55,7 @@ struct msm_pm_platform_data {
 void msm_pm_set_platform_data(struct msm_pm_platform_data *data, int count);
 void arch_idle(void);
 int msm_pm_idle_prepare(struct cpuidle_device *dev);
-int msm_pm_idle_enter(suspend_state_t state);
+int msm_pm_enter(suspend_state_t state);
 
 #ifdef CONFIG_HOTPLUG_CPU
 int msm_pm_platform_secondary_init(unsigned int cpu);
