@@ -148,7 +148,6 @@ static ssize_t mdp_reg_write(
 	loff_t *ppos)
 {
 	uint32 off, data;
-	int cnt;
 
 	if (count >= sizeof(debug_buf))
 		return -EFAULT;
@@ -158,7 +157,7 @@ static ssize_t mdp_reg_write(
 
 	debug_buf[count] = 0;	/* end of string */
 
-	cnt = sscanf(debug_buf, "%x %x", &off, &data);
+	sscanf(debug_buf, "%x %x", &off, &data);
 
 	mdp_pipe_ctrl(MDP_CMD_BLOCK, MDP_BLOCK_POWER_ON, FALSE);
 	outpdw(MDP_BASE + off, data);
@@ -532,7 +531,6 @@ static ssize_t pmdh_reg_write(
 	loff_t *ppos)
 {
 	uint32 off, data;
-	int cnt;
 
 	if (count >= sizeof(debug_buf))
 		return -EFAULT;
@@ -542,7 +540,7 @@ static ssize_t pmdh_reg_write(
 
 	debug_buf[count] = 0;	/* end of string */
 
-	cnt = sscanf(debug_buf, "%x %x", &off, &data);
+	sscanf(debug_buf, "%x %x", &off, &data);
 
 	mddi_reg_write(0, off, data);
 
@@ -665,7 +663,6 @@ static ssize_t emdh_reg_write(
 	loff_t *ppos)
 {
 	uint32 off, data;
-	int cnt;
 
 	if (count >= sizeof(debug_buf))
 		return -EFAULT;
@@ -675,7 +672,7 @@ static ssize_t emdh_reg_write(
 
 	debug_buf[count] = 0;	/* end of string */
 
-	cnt = sscanf(debug_buf, "%x %x", &off, &data);
+	sscanf(debug_buf, "%x %x", &off, &data);
 
 	mddi_reg_write(1, off, data);
 
@@ -879,7 +876,6 @@ static ssize_t dbg_reg_write(
 	loff_t *ppos)
 {
 	uint32 off, data;
-	int cnt;
 
 	if (count >= sizeof(debug_buf))
 		return -EFAULT;
@@ -889,7 +885,7 @@ static ssize_t dbg_reg_write(
 
 	debug_buf[count] = 0;	/* end of string */
 
-	cnt = sscanf(debug_buf, "%x %x", &off, &data);
+	sscanf(debug_buf, "%x %x", &off, &data);
 
 	writel(data, dbg_base + off);
 

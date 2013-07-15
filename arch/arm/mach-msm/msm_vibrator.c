@@ -49,7 +49,9 @@ VibeInt32 g_nLRA_GP_CLK_D = GP_CLK_N_DEFAULT;
 VibeInt32 g_nLRA_GP_CLK_PWM_MUL = IMM_PWM_MULTIPLIER;
 
 static struct hrtimer vibe_timer;
+#ifndef CONFIG_MACH_TASS
 static int is_vibe_on = 0;
+#endif
 
 
 static int msm_vibrator_suspend(struct platform_device *pdev, pm_message_t state);
@@ -178,7 +180,7 @@ static int msm_vibrator_power(int on)
 
 	return VIBE_S_SUCCESS;
 }
-
+#if defined(CONFIG_MACH_EUROPA) || defined(CONFIG_MACH_CALLISTO)
 static int vibe_set_pwm_freq(int nForce)
 {
 #if 1
@@ -200,6 +202,7 @@ static int vibe_set_pwm_freq(int nForce)
 		return VIBE_S_SUCCESS;
 }
 
+
 static void set_pmic_vibrator(int on)
 {
 //	printk("[VIB] %s, input : %s\n",__func__,on ? "ON":"OFF");
@@ -216,6 +219,7 @@ static void set_pmic_vibrator(int on)
 	}
 
 }
+#endif
 
 #if 0
 static void pmic_vibrator_on(struct work_struct *work)
@@ -271,7 +275,6 @@ static void pmic_vibrator_off(void)
 
 static void vibrator_enable(struct timed_output_dev *dev, int value)
 {
-	unsigned long flags;
 
 	hrtimer_cancel(&vibe_timer);
 
@@ -362,7 +365,7 @@ static int __devinit msm_vibrator_probe(struct platform_device *pdev)
 		if(IS_ERR(android_vib_clk)) {
 			printk("android vib clk failed!!!\n");
 		} else {
-			printk("THNAK YOU!!\n");
+			printk("THANK YOU!!\n");
 		}
 		vibe_set_pwm_freq(216);
 #if defined(CONFIG_MACH_CALLISTO)

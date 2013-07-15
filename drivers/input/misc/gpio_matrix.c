@@ -25,7 +25,7 @@
 
 #include <linux/module.h>
 
-//#define AUTO_POWER_ON_OFF_FLAG 1
+#define AUTO_POWER_ON_OFF_FLAG 1
 
 #if defined(CONFIG_MACH_COOPER) || defined(CONFIG_MACH_BENI) || defined(CONFIG_MACH_TASS) || defined(CONFIG_MACH_TASSDT) || defined(CONFIG_MACH_LUCAS) || defined(CONFIG_MACH_GIO)
 unsigned int Volume_Up_irq = 0;

@@ -529,6 +529,7 @@ static int msm_otg_set_power(struct otg_transceiver *xceiv, unsigned mA)
 	if (test_bit(ID_C, &dev->inputs) ||
 				test_bit(ID_B, &dev->inputs))
 		#ifdef CONFIG_FORCE_FAST_CHARGE
+	{
 		if (force_fast_charge == 1) 
 			charge = USB_FASTCHG_LOAD;
 		else
@@ -536,6 +537,9 @@ static int msm_otg_set_power(struct otg_transceiver *xceiv, unsigned mA)
 		#endif
 
 	pr_debug("Charging with %dmA current\n", charge);
+	#ifdef CONFIG_FORCE_FAST_CHARGE
+	}
+	#endif
 	/* Call vbus_draw only if the charger is of known type */
 	if (pdata->chg_vbus_draw && new_chg != USB_CHG_TYPE__INVALID)
 		pdata->chg_vbus_draw(charge);

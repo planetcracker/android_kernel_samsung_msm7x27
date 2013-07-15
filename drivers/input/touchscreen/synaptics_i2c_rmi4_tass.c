@@ -212,7 +212,6 @@ static void synaptics_ts_work_func(struct work_struct *work)
 	uint8_t buf[12];// 02h ~ 0Dh
 	uint8_t i2c_addr = 0x02;
 	int i = 0;
-	uint8_t finger = 0;
 
 	struct synaptics_ts_data *ts = container_of(work, struct synaptics_ts_data, work);
 
@@ -222,8 +221,6 @@ static void synaptics_ts_work_func(struct work_struct *work)
 		printk("[TSP] i2c failed : ret=%d, ln=%d\n",ret, __LINE__);
 		goto work_func_out;
 	}
-
-	finger = buf[0] & 0x07;	
 
 	fingerInfo[0].x = (buf[1] << 8) |buf[2];
 	fingerInfo[0].y = (buf[3] << 8) |buf[4];
@@ -642,7 +639,7 @@ static int synaptics_ts_suspend(struct i2c_client *client, pm_message_t mesg)
 	}
 	}
 	else
-		printk("[TSP] TSP isn't present.\n", __func__ );
+		printk("[TSP] TSP isn't present.\n" );
 
 	TSP_forced_release_forkey();
 
@@ -656,8 +653,7 @@ static DECLARE_DELAYED_WORK(ts_resume_work, ts_resume_work_func);
 
 static void ts_resume_work_func(struct work_struct *ignored)
 {
-	int ret, key, retry_count;
-	struct vreg *vreg_touch;
+	int ret, retry_count;
 	uint8_t i2c_addr = 0x1D;
 	uint8_t buf[1];
 	printk("[TSP] %s+\n", __func__ );
@@ -703,11 +699,8 @@ static void ts_resume_work_func(struct work_struct *ignored)
 
 static int synaptics_ts_resume(struct i2c_client *client)
 {
-	int ret, key, retry_count;
+	int ret;
 	struct vreg *vreg_touch;
-	struct synaptics_ts_data *ts = i2c_get_clientdata(client);
-	uint8_t i2c_addr = 0x1D;
-	uint8_t buf[1];
 
 	printk("[TSP] %s+\n", __func__ );
 	if( touch_present )
@@ -772,7 +765,7 @@ static int synaptics_ts_resume(struct i2c_client *client)
 #endif
 	}
 	else
-		printk("[TSP] TSP isn't present.\n", __func__ );
+		printk("[TSP] TSP isn't present.\n");
 	printk("[TSP] %s-\n", __func__ );
 	return 0;
 }

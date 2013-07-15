@@ -880,8 +880,6 @@ static int taos_opt_resume(struct i2c_client *client)
 #define taos_opt_resume NULL
 #endif
 
-static unsigned short normal_i2c[] = { I2C_CLIENT_END};
-I2C_CLIENT_INSMOD_1(taos);
 
 static const struct i2c_device_id taos_id[] = {
 	{ "taos", 0 },

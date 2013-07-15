@@ -164,7 +164,7 @@ msmsdcc_request_end(struct msmsdcc_host *host, struct mmc_request *mrq)
     if(&host->req_tout_timer !=  NULL)
 		del_timer(&host->req_tout_timer);
 
-	if(mrq == NULL) return;
+	if(mrq == NULL) return retval;
 
 	if (mrq->data)
 		mrq->data->bytes_xfered = host->curr.data_xfered;
@@ -2128,8 +2128,6 @@ static int msmsdcc_runtime_idle(struct device *dev)
 
 static int msmsdcc_pm_suspend(struct device *dev)
 {
-	struct mmc_host *mmc = dev_get_drvdata(dev);
-	struct msmsdcc_host *host = mmc_priv(mmc);
 	int rc = 0;
 
 //PMMC	if (host->plat->status_irq)
@@ -2144,7 +2142,6 @@ static int msmsdcc_pm_suspend(struct device *dev)
 static int msmsdcc_pm_resume(struct device *dev)
 {
 	struct mmc_host *mmc = dev_get_drvdata(dev);
-	struct msmsdcc_host *host = mmc_priv(mmc);
 	int rc = 0;
 
 	rc = msmsdcc_runtime_resume(dev);

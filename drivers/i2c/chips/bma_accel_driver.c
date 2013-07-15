@@ -147,8 +147,7 @@ static inline char bma222_i2c_write(unsigned char reg_addr, unsigned char *data,
 {
 	uint8_t i;
 	unsigned char tmp[2];
-	tmp[0] = reg_addr;
-	tmp[1] = *data;
+
 	
 	struct i2c_msg msg[] = {
 		{
@@ -158,6 +157,8 @@ static inline char bma222_i2c_write(unsigned char reg_addr, unsigned char *data,
 			.buf	= tmp,
 		}
 	};
+	tmp[0] = reg_addr;
+	tmp[1] = *data;
 	
 	for (i = 0; i < BMA222_RETRY_COUNT; i++) {
 		if (i2c_transfer(bma_client->adapter, msg, 1) >= 0) {
@@ -936,9 +937,7 @@ static struct attribute_group acc_attribute_group = {
 static void bma_work_func_acc(struct work_struct *work)
 {
 	bma222acc_t acc;
-	int err;
 		
-	err = bma222_read_accel_xyz(&acc);
 	
 //	printk("##### %d,  %d,  %d\n", acc.x, acc.y, acc.z );
 
@@ -1246,19 +1245,16 @@ static void bma_early_suspend(struct early_suspend *h)
 {
 	struct bma_data *data;
 	data = container_of(h, struct bma_data, early_suspend);
-	bma_suspend(&bma_client,PMSG_SUSPEND);
+	bma_suspend(bma_client,PMSG_SUSPEND);
 }
 
 static void bma_late_resume(struct early_suspend *h)
 {
 	struct bma_data *data;
 	data = container_of(h, struct bma_data, early_suspend);
-	bma_resume(&bma_client);
+	bma_resume(bma_client);
 }
 #endif
-
-static unsigned short normal_i2c[] = { I2C_CLIENT_END};
-I2C_CLIENT_INSMOD_1(bma_accel);
 
 static const struct i2c_device_id bma_id[] = {
 	{ "bma_accel", 0 },

@@ -522,7 +522,6 @@ static DEVICE_ATTR(info, S_IRUGO|S_IWUSR, show_info, NULL);
 static ssize_t store_whitelist(struct device *d,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
-	int i;
 
 	switch (buf[0]) {
 	case 0x7F:
@@ -550,7 +549,6 @@ static DEVICE_ATTR(whitelist, S_IRUGO|S_IWUSR, NULL, store_whitelist);
 static ssize_t store_power_down(struct device *d,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
-	int i;
 	char *after;
         unsigned long value = simple_strtoul(buf, &after, 10);
 
@@ -569,7 +567,6 @@ static DEVICE_ATTR(power_down, S_IRUGO|S_IWUSR, NULL, store_power_down);
 static ssize_t store_cpu_gov(struct device *d,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
-	int i;
 	char *after;
         unsigned long value = simple_strtoul(buf, &after, 10);
 
@@ -901,19 +898,19 @@ static int dpram_get_dgs(void)
 	int                   nRet;		
 #if DGS_TEST
 	typedef struct{
-		UINT8 header_code[4];  // magic 넘버   // {0x7F,0xAA,0xAF,0x7E}
-		UINT8 model[20];       // 모델명
-		UINT8 nature[40];      // 출항지
-		UINT8 custt_code[8];   // 거래선
-		UINT8 date[14];        // 버전 발행일
-		UINT8 charger[24];     // 담당자
-		UINT8 version[20];     // SW 버전명
+		UINT8 header_code[4];  // magic \B3箕\F6   // {0x7F,0xAA,0xAF,0x7E}
+		UINT8 model[20];       // \B8醍㉧\ED
+		UINT8 nature[40];      // \C3\E2\C7\D7\C1\F6
+		UINT8 custt_code[8];   // \B0킹\A1\BC\B1
+		UINT8 date[14];        // \B9\F6\C0\FC \B9\DF\C7\E0\C0\CF
+		UINT8 charger[24];     // \B4\E3\B4\E7\C0\DA
+		UINT8 version[20];     // SW \B9\F6\C0\FC\B8\ED
 		UINT8 checksum[10];    // binary ckecksum
 		UINT8 crcsum[10];      // binary CRC
 		UINT8 Unique_Number[20];  // UN number
-		UINT8 mem_name[20];    // 메모리 명
+		UINT8 mem_name[20];    // \B8貧\F0\B8\AE \B8\ED
 		UINT8 sec_code[20];    // 
-		UINT8 etc[40];         // 기타
+		UINT8 etc[40];         // \B1\E2타
     }NAND_HEAD_INFO;
 	NAND_HEAD_INFO header_info = {{0x7F,0xAA,0xAF,0x7E}, {"GT-I5500"}, {"EUR-Open"}, {"TIM"},
 								{"2010-03-25"}, {"LKH"}, {"I5500AIJC3"}, {"C721"}, {"41D7"}, 
@@ -986,11 +983,9 @@ static void print_smem(void)
 #if 1
 	struct file *filp;
 //  int i;
-	int writelen;
 	mm_segment_t old_fs;
 	static char buf[1024*32];
 //	static int buf[1024];
-	int count, chr_count;
 //	char *src;
 //	fl_owner_t id;
 #endif
@@ -1037,8 +1032,6 @@ static void print_smem(void)
 #if 1
 //		id = current->files;
 
-		count = 1024 * 8;
-		chr_count = 0;
 		old_fs = get_fs();
         set_fs(KERNEL_DS);
 
@@ -1048,7 +1041,6 @@ static void print_smem(void)
 		else 
 		{
 			memcpy((void *)buf, (void *)SmemBase, 1024*32);
-			writelen = filp->f_op->write(filp,(void *)buf,1024*32,&filp->f_pos);
 		}
 		set_fs(old_fs);
 #if 0
