@@ -53,20 +53,20 @@ extern void compact_nodes(bool sync);
 static uint32_t lowmem_debug_level = 1;
 static short lowmem_adj[6] = {
 	0,
-	3,
-	5,
-	9,
-	11,
+	4,
+	8,
+	10,
 	13,
+	15,
 };
 static int lowmem_adj_size = 6;
 static int lowmem_minfree[6] = {
 	1536,	/* 12MB */
 	2048,	/* 16MB */
-	8192,	/* 40MB */
-	9216,	/* 64MB */
+	6144,	/* 40MB */
+	8192,	/* 64MB */
+	9216,
 	10240,
-	12800,
 };
 static int lowmem_minfree_size = 6;
 static int white_list[6] = {

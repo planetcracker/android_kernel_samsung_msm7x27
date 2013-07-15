@@ -36,7 +36,7 @@
 #include <linux/earlysuspend.h>
 #include "internal.h"
 
-#define DEFAULT_VFS_CACHE_PRESSURE 120
+#define DEFAULT_VFS_CACHE_PRESSURE 80
 int sysctl_vfs_cache_pressure __read_mostly, resume_cache_pressure;
 int suspend_cache_pressure = 10;
 EXPORT_SYMBOL_GPL(sysctl_vfs_cache_pressure);
