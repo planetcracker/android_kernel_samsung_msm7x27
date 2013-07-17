@@ -58,12 +58,9 @@ static int parse_one(char *param,
 	/* Find parameter */
 	for (i = 0; i < num_params; i++) {
 		if (parameq(param, params[i].name)) {
-			/* Noone handled NULL, so do it here. */
-			if (!val && params[i].ops->set != param_set_bool)
-				return -EINVAL;
 			DEBUGP("They are equal!  Calling %p\n",
-			       params[i].ops->set);
-			return params[i].ops->set(val, &params[i]);
+			       params[i].set);
+			return params[i].set(val, &params[i]);
 		}
 	}
 
@@ -179,7 +176,7 @@ int parse_args(const char *name,
 
 /* Lazy bastard, eh? */
 #define STANDARD_PARAM_DEF(name, type, format, tmptype, strtolfn)      	\
-	int param_set_##name(const char *val, const struct kernel_param *kp) \
+	int param_set_##name(const char *val, struct kernel_param *kp)	\
 	{								\
 		tmptype l;						\
 		int ret;						\
@@ -191,18 +188,10 @@ int parse_args(const char *name,
 		*((type *)kp->arg) = l;					\
 		return 0;						\
 	}								\
-	int param_get_##name(char *buffer, const struct kernel_param *kp) \
+	int param_get_##name(char *buffer, struct kernel_param *kp)	\
 	{								\
 		return sprintf(buffer, format, *((type *)kp->arg));	\
-	}								\
-	struct kernel_param_ops param_ops_##name = {			\
-		.set = param_set_##name,				\
-		.get = param_get_##name,				\
-	};								\
-	EXPORT_SYMBOL(param_set_##name);				\
-	EXPORT_SYMBOL(param_get_##name);				\
-	EXPORT_SYMBOL(param_ops_##name)
-
+	}
 
 STANDARD_PARAM_DEF(byte, unsigned char, "%c", unsigned long, strict_strtoul);
 STANDARD_PARAM_DEF(short, short, "%hi", long, strict_strtol);
@@ -212,7 +201,7 @@ STANDARD_PARAM_DEF(uint, unsigned int, "%u", unsigned long, strict_strtoul);
 STANDARD_PARAM_DEF(long, long, "%li", long, strict_strtol);
 STANDARD_PARAM_DEF(ulong, unsigned long, "%lu", unsigned long, strict_strtoul);
 
-int param_set_charp(const char *val, const struct kernel_param *kp)
+int param_set_charp(const char *val, struct kernel_param *kp)
 {
 	if (!val) {
 		printk(KERN_ERR "%s: string parameter expected\n",
@@ -238,19 +227,13 @@ int param_set_charp(const char *val, const struct kernel_param *kp)
 	return 0;
 }
 
-int param_get_charp(char *buffer, const struct kernel_param *kp)
+int param_get_charp(char *buffer, struct kernel_param *kp)
 {
 	return sprintf(buffer, "%s", *((char **)kp->arg));
 }
 
-struct kernel_param_ops param_ops_charp = {
-	.set = param_set_charp,
-	.get = param_get_charp,
-};
-EXPORT_SYMBOL(param_ops_charp);
-
 /* Actually could be a bool or an int, for historical reasons. */
-int param_set_bool(const char *val, const struct kernel_param *kp)
+int param_set_bool(const char *val, struct kernel_param *kp)
 {
 	bool v;
 
@@ -276,7 +259,7 @@ int param_set_bool(const char *val, const struct kernel_param *kp)
 	return 0;
 }
 
-int param_get_bool(char *buffer, const struct kernel_param *kp)
+int param_get_bool(char *buffer, struct kernel_param *kp)
 {
 	bool val;
 	if (kp->flags & KPARAM_ISBOOL)
@@ -288,14 +271,8 @@ int param_get_bool(char *buffer, const struct kernel_param *kp)
 	return sprintf(buffer, "%c", val ? 'Y' : 'N');
 }
 
-struct kernel_param_ops param_ops_bool = {
-	.set = param_set_bool,
-	.get = param_get_bool,
-};
-EXPORT_SYMBOL(param_ops_bool);
-
 /* This one must be bool. */
-int param_set_invbool(const char *val, const struct kernel_param *kp)
+int param_set_invbool(const char *val, struct kernel_param *kp)
 {
 	int ret;
 	bool boolval;
@@ -309,23 +286,17 @@ int param_set_invbool(const char *val, const struct kernel_param *kp)
 	return ret;
 }
 
-int param_get_invbool(char *buffer, const struct kernel_param *kp)
+int param_get_invbool(char *buffer, struct kernel_param *kp)
 {
 	return sprintf(buffer, "%c", (*(bool *)kp->arg) ? 'N' : 'Y');
 }
-
-struct kernel_param_ops param_ops_invbool = {
-	.set = param_set_invbool,
-	.get = param_get_invbool,
-};
-EXPORT_SYMBOL(param_ops_invbool);
 
 /* We break the rule and mangle the string. */
 static int param_array(const char *name,
 		       const char *val,
 		       unsigned int min, unsigned int max,
 		       void *elem, int elemsize,
-		       int (*set)(const char *, const struct kernel_param *kp),
+		       int (*set)(const char *, struct kernel_param *kp),
 		       u16 flags,
 		       unsigned int *num)
 {
@@ -376,17 +347,17 @@ static int param_array(const char *name,
 	return 0;
 }
 
-static int param_array_set(const char *val, const struct kernel_param *kp)
+int param_array_set(const char *val, struct kernel_param *kp)
 {
 	const struct kparam_array *arr = kp->arr;
 	unsigned int temp_num;
 
 	return param_array(kp->name, val, 1, arr->max, arr->elem,
-			   arr->elemsize, arr->ops->set, kp->flags,
+			   arr->elemsize, arr->set, kp->flags,
 			   arr->num ?: &temp_num);
 }
 
-static int param_array_get(char *buffer, const struct kernel_param *kp)
+int param_array_get(char *buffer, struct kernel_param *kp)
 {
 	int i, off, ret;
 	const struct kparam_array *arr = kp->arr;
@@ -397,7 +368,7 @@ static int param_array_get(char *buffer, const struct kernel_param *kp)
 		if (i)
 			buffer[off++] = ',';
 		p.arg = arr->elem + arr->elemsize * i;
-		ret = arr->ops->get(buffer + off, &p);
+		ret = arr->get(buffer + off, &p);
 		if (ret < 0)
 			return ret;
 		off += ret;
@@ -406,13 +377,7 @@ static int param_array_get(char *buffer, const struct kernel_param *kp)
 	return off;
 }
 
-struct kernel_param_ops param_array_ops = {
-	.set = param_array_set,
-	.get = param_array_get,
-};
-EXPORT_SYMBOL(param_array_ops);
-
-int param_set_copystring(const char *val, const struct kernel_param *kp)
+int param_set_copystring(const char *val, struct kernel_param *kp)
 {
 	const struct kparam_string *kps = kp->str;
 
@@ -429,17 +394,11 @@ int param_set_copystring(const char *val, const struct kernel_param *kp)
 	return 0;
 }
 
-int param_get_string(char *buffer, const struct kernel_param *kp)
+int param_get_string(char *buffer, struct kernel_param *kp)
 {
 	const struct kparam_string *kps = kp->str;
 	return strlcpy(buffer, kps->string, kps->maxlen);
 }
-
-struct kernel_param_ops param_ops_string = {
-	.set = param_set_copystring,
-	.get = param_get_string,
-};
-EXPORT_SYMBOL(param_ops_string);
 
 /* sysfs output in /sys/modules/XYZ/parameters/ */
 #define to_module_attr(n) container_of(n, struct module_attribute, attr)
@@ -450,7 +409,7 @@ extern struct kernel_param __start___param[], __stop___param[];
 struct param_attribute
 {
 	struct module_attribute mattr;
-	const struct kernel_param *param;
+	struct kernel_param *param;
 };
 
 struct module_param_attrs
@@ -469,10 +428,10 @@ static ssize_t param_attr_show(struct module_attribute *mattr,
 	int count;
 	struct param_attribute *attribute = to_param_attr(mattr);
 
-	if (!attribute->param->ops->get)
+	if (!attribute->param->get)
 		return -EPERM;
 
-	count = attribute->param->ops->get(buf, attribute->param);
+	count = attribute->param->get(buf, attribute->param);
 	if (count > 0) {
 		strcat(buf, "\n");
 		++count;
@@ -488,10 +447,10 @@ static ssize_t param_attr_store(struct module_attribute *mattr,
  	int err;
 	struct param_attribute *attribute = to_param_attr(mattr);
 
-	if (!attribute->param->ops->set)
+	if (!attribute->param->set)
 		return -EPERM;
 
-	err = attribute->param->ops->set(buf, attribute->param);
+	err = attribute->param->set(buf, attribute->param);
 	if (!err)
 		return len;
 	return err;
@@ -516,7 +475,7 @@ static ssize_t param_attr_store(struct module_attribute *mattr,
  * if there's an error.
  */
 static __modinit int add_sysfs_param(struct module_kobject *mk,
-				     const struct kernel_param *kp,
+				     struct kernel_param *kp,
 				     const char *name)
 {
 	struct module_param_attrs *new;
@@ -598,7 +557,7 @@ static void free_module_param_attrs(struct module_kobject *mk)
  * /sys/module/[mod->name]/parameters/
  */
 int module_param_sysfs_setup(struct module *mod,
-			     const struct kernel_param *kparam,
+			     struct kernel_param *kparam,
 			     unsigned int num_params)
 {
 	int i, err;
@@ -810,7 +769,20 @@ subsys_initcall(param_sysfs_init);
 
 #endif /* CONFIG_SYSFS */
 
-
+EXPORT_SYMBOL(param_set_byte);
+EXPORT_SYMBOL(param_get_byte);
+EXPORT_SYMBOL(param_set_short);
+EXPORT_SYMBOL(param_get_short);
+EXPORT_SYMBOL(param_set_ushort);
+EXPORT_SYMBOL(param_get_ushort);
+EXPORT_SYMBOL(param_set_int);
+EXPORT_SYMBOL(param_get_int);
+EXPORT_SYMBOL(param_set_uint);
+EXPORT_SYMBOL(param_get_uint);
+EXPORT_SYMBOL(param_set_long);
+EXPORT_SYMBOL(param_get_long);
+EXPORT_SYMBOL(param_set_ulong);
+EXPORT_SYMBOL(param_get_ulong);
 EXPORT_SYMBOL(param_set_charp);
 EXPORT_SYMBOL(param_get_charp);
 EXPORT_SYMBOL(param_set_bool);
