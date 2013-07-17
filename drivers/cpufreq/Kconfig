@@ -157,11 +157,11 @@ config CPU_FREQ_DEFAULT_GOV_DYNAMIC_INTERACTIVE
     'interactive' governor for latency-sensitive workloads. This governor
     changes its tunables by itself depending on the load of the system.
 
-config CPU_FREQ_DEFAULT_GOV_SAVAGEDZEN
-	bool "SavagedZen"
-	select CPU_FREQ_GOV_SAVAGEDZEN
+config CPU_FREQ_DEFAULT_GOV_ZEN
+	bool "Zen"
+	select CPU_FREQ_GOV_ZEN
 	help
-	  Use the CPUFreq governor 'savagedzen' as default.
+	  Use the CPUFreq governor 'zen' as default.
 
 config CPU_FREQ_DEFAULT_GOV_SCARY
 	bool "scary"
@@ -436,11 +436,11 @@ config CPU_FREQ_GOV_DYNAMIC_INTERACTIVE
     If in doubt, say N.
 
 
-config CPU_FREQ_GOV_SAVAGEDZEN
-	tristate "'savagedzen' cpufreq governor"
+config CPU_FREQ_GOV_ZEN
+	tristate "'zen' cpufreq governor"
 	depends on CPU_FREQ
 	help
-	   'Savaged-Zen' - a "smartass" based governor
+	   'Zen' - a "smartassV2" based governor
 	   If in doubt, say N.
 
 config CPU_FREQ_GOV_WHEATLEYPLUS
