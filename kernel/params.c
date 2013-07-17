@@ -31,14 +31,12 @@
 #define DEBUGP(fmt, a...)
 #endif
 
-/* Protects all parameters, and incidentally kmalloced_param list. */
-static DEFINE_MUTEX(param_lock);
-
 /* This just allows us to keep track of which parameters are kmalloced. */
 struct kmalloced_param {
 	struct list_head list;
 	char val[];
 };
+static DEFINE_MUTEX(param_lock);
 static LIST_HEAD(kmalloced_params);
 
 static void *kmalloc_parameter(unsigned int size)
@@ -49,7 +47,10 @@ static void *kmalloc_parameter(unsigned int size)
 	if (!p)
 		return NULL;
 
+	mutex_lock(&param_lock);
 	list_add(&p->list, &kmalloced_params);
+	mutex_unlock(&param_lock);
+
 	return p->val;
 }
 
@@ -58,6 +59,7 @@ static void maybe_kfree_parameter(void *param)
 {
 	struct kmalloced_param *p;
 
+	mutex_lock(&param_lock);
 	list_for_each_entry(p, &kmalloced_params, list) {
 		if (p->val == param) {
 			list_del(&p->list);
@@ -65,6 +67,7 @@ static void maybe_kfree_parameter(void *param)
 			break;
 		}
 	}
+	mutex_unlock(&param_lock);
 }
 
 static inline char dash2underscore(char c)
@@ -90,7 +93,6 @@ static int parse_one(char *param,
 		     int (*handle_unknown)(char *param, char *val))
 {
 	unsigned int i;
-	int err;
 
 	/* Find parameter */
 	for (i = 0; i < num_params; i++) {
@@ -100,10 +102,7 @@ static int parse_one(char *param,
 				return -EINVAL;
 			DEBUGP("They are equal!  Calling %p\n",
 			       params[i].ops->set);
-			mutex_lock(&param_lock);
-			err = params[i].ops->set(val, &params[i]);
-			mutex_unlock(&param_lock);
-			return err;
+			return params[i].ops->set(val, &params[i]);
 		}
 	}
 
@@ -408,7 +407,6 @@ static int param_array(const char *name,
 		/* nul-terminate and parse */
 		save = val[len];
 		((char *)val)[len] = '\0';
-		BUG_ON(!mutex_is_locked(&param_lock));
 		ret = set(val, &kp);
 
 		if (ret != 0)
@@ -447,7 +445,6 @@ static int param_array_get(char *buffer, const struct kernel_param *kp)
 		if (i)
 			buffer[off++] = ',';
 		p.arg = arr->elem + arr->elemsize * i;
-		BUG_ON(!mutex_is_locked(&param_lock));
 		ret = arr->ops->get(buffer + off, &p);
 		if (ret < 0)
 			return ret;
@@ -534,9 +531,7 @@ static ssize_t param_attr_show(struct module_attribute *mattr,
 	if (!attribute->param->ops->get)
 		return -EPERM;
 
-	mutex_lock(&param_lock);
 	count = attribute->param->ops->get(buf, attribute->param);
-	mutex_unlock(&param_lock);
 	if (count > 0) {
 		strcat(buf, "\n");
 		++count;
@@ -555,9 +550,7 @@ static ssize_t param_attr_store(struct module_attribute *mattr,
 	if (!attribute->param->ops->set)
 		return -EPERM;
 
-	mutex_lock(&param_lock);
 	err = attribute->param->ops->set(buf, attribute->param);
-	mutex_unlock(&param_lock);
 	if (!err)
 		return len;
 	return err;
@@ -571,18 +564,6 @@ static ssize_t param_attr_store(struct module_attribute *mattr,
 #endif
 
 #ifdef CONFIG_SYSFS
-void __kernel_param_lock(void)
-{
-	mutex_lock(&param_lock);
-}
-EXPORT_SYMBOL(__kernel_param_lock);
-
-void __kernel_param_unlock(void)
-{
-	mutex_unlock(&param_lock);
-}
-EXPORT_SYMBOL(__kernel_param_unlock);
-
 /*
  * add_sysfs_param - add a parameter to sysfs
  * @mk: struct module_kobject
