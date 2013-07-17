@@ -205,11 +205,11 @@ static char * argv_init[MAX_INIT_ARGS+2] = { "init", NULL, };
 char * envp_init[MAX_INIT_ENVS+2] = { "HOME=/", "TERM=linux", NULL, };
 static const char *panic_later, *panic_param;
 
-extern const struct obs_kernel_param __setup_start[], __setup_end[];
+extern struct obs_kernel_param __setup_start[], __setup_end[];
 
 static int __init obsolete_checksetup(char *line)
 {
-	const struct obs_kernel_param *p;
+	struct obs_kernel_param *p;
 	int had_early_param = 0;
 
 	p = __setup_start;
@@ -474,7 +474,7 @@ char Sales_Code[3];
 /* Check for early params. */
 static int __init do_early_param(char *param, char *val)
 {
-	const struct obs_kernel_param *p;
+	struct obs_kernel_param *p;
 
 #if defined (CONFIG_MSM_ARM9_USES_UART3)
 	if ( (strcmp(param, "console") == 0 )
@@ -672,7 +672,7 @@ static void __init mm_init(void)
 asmlinkage void __init start_kernel(void)
 {
 	char * command_line;
-	extern const struct kernel_param __start___param[], __stop___param[];
+	extern struct kernel_param __start___param[], __stop___param[];
 
 	smp_setup_processor_id();
 

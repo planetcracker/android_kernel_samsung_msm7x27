@@ -88,7 +88,7 @@ static inline int parameq(const char *input, const char *paramname)
 
 static int parse_one(char *param,
 		     char *val,
-		     const struct kernel_param *params,
+		     struct kernel_param *params, 
 		     unsigned num_params,
 		     int (*handle_unknown)(char *param, char *val))
 {
@@ -170,7 +170,7 @@ static char *next_arg(char *args, char **param, char **val)
 /* Args looks like "foo=bar,bar2 baz=fuz wiz". */
 int parse_args(const char *name,
 	       char *args,
-	       const struct kernel_param *params,
+	       struct kernel_param *params,
 	       unsigned num,
 	       int (*unknown)(char *param, char *val))
 {
