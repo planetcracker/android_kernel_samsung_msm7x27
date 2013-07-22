@@ -67,7 +67,7 @@ static unsigned int sleep_ideal_freq;
 static unsigned int ramp_up_step;
 
 /*
- * Freqeuncy delta when ramping down below the ideal freqeuncy.
+ * Freqeuncy delta when ramping down below the ideal frequency.
  * Zero disables and will calculate ramp down according to load heuristic.
  * When above the ideal freqeuncy we always ramp down to the ideal freq.
  */
@@ -77,27 +77,27 @@ static unsigned int ramp_down_step;
 /*
  * CPU freq will be increased if measured load > max_cpu_load;
  */
-#define DEFAULT_MAX_CPU_LOAD 60
+#define DEFAULT_MAX_CPU_LOAD 85
 static unsigned long max_cpu_load;
 
 /*
  * CPU freq will be decreased if measured load < min_cpu_load;
  */
-#define DEFAULT_MIN_CPU_LOAD 35
+#define DEFAULT_MIN_CPU_LOAD 50
 static unsigned long min_cpu_load;
 
 /*
  * The minimum amount of time to spend at a frequency before we can ramp up.
  * Notice we ignore this when we are below the ideal frequency.
  */
-#define DEFAULT_UP_RATE_US 28000;
+#define DEFAULT_UP_RATE_US 44000;
 static unsigned long up_rate_us;
 
 /*
  * The minimum amount of time to spend at a frequency before we can ramp down.
  * Notice we ignore this when we are above the ideal frequency.
  */
-#define DEFAULT_DOWN_RATE_US 39000;
+#define DEFAULT_DOWN_RATE_US 29000;
 static unsigned long down_rate_us;
 
 /*
@@ -323,10 +323,8 @@ static void cpufreq_zen_timer(unsigned long cpu)
 
 	if (delta_idle > delta_time) {
 		cpu_load = 0;
-		awake_ideal_freq = 122880;
 	} else {
 		cpu_load = 100 * (unsigned int)(delta_time - delta_idle) / (unsigned int)delta_time;
-		awake_ideal_freq = 360000;
 	}
 
 	dprintk(ZEN_DEBUG_LOAD,"zenT @ %d: load %d (delta_time %llu)\n",
@@ -334,6 +332,23 @@ static void cpufreq_zen_timer(unsigned long cpu)
 
 	this_zen->cur_cpu_load = cpu_load;
 	this_zen->old_freq = old_freq;
+
+	// Dynamic parameters section
+	if (cpu_load > (max_cpu_load - 5) && !suspended)
+	{
+		this_zen->ideal_speed = 360000;
+		up_rate_us = 26000;
+	} 
+	else if (cpu_load < (max_cpu_load - 15) && !suspended)
+	{
+		if (cpu_load > 20) {
+			this_zen->ideal_speed = 245760;
+			up_rate_us = 44000;
+		} else {
+			this_zen->ideal_speed = 122880;
+			up_rate_us = 56000;
+		}	
+	}
 
 	// Scale up if load is above max or if there where no idle cycles since coming out of idle,
 	// additionally, if we are at or above the ideal_speed, verify we have been at this frequency
