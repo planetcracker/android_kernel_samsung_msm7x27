@@ -48,8 +48,6 @@ extern ssize_t arch_cpu_release(const char *, size_t);
 #endif
 struct notifier_block;
 
-<<<<<<< HEAD
-=======
 /*
  * CPU notifier priorities.
  */
@@ -77,7 +75,6 @@ enum {
 	CPU_PRI_WORKQUEUE	= 5,
 };
 
->>>>>>> db7bccf... workqueue: reimplement CPU hotplugging support using trustee
 #ifdef CONFIG_SMP
 /* Need to know about CPUs going up/down? */
 #if defined(CONFIG_HOTPLUG_CPU) || !defined(MODULE)
