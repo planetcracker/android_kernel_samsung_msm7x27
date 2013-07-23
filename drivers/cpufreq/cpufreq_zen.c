@@ -69,7 +69,7 @@ static unsigned int sleep_ideal_freq;
  * Zero disables and causes to always jump straight to max frequency.
  * When below the ideal freqeuncy we always ramp up to the ideal freq.
  */
-#define DEFAULT_RAMP_UP_STEP 120000
+#define DEFAULT_RAMP_UP_STEP 60000
 static unsigned int ramp_up_step;
 
 /*
@@ -89,14 +89,14 @@ static unsigned long max_cpu_load;
 /*
  * CPU freq will be decreased if measured load < min_cpu_load;
  */
-#define DEFAULT_MIN_CPU_LOAD 65
+#define DEFAULT_MIN_CPU_LOAD 70
 static unsigned long min_cpu_load;
 
 /*
  * The minimum amount of time to spend at a frequency before we can ramp up.
  * Notice we ignore this when we are below the ideal frequency.
  */
-#define DEFAULT_UP_RATE_US 44000;
+#define DEFAULT_UP_RATE_US 49000;
 static unsigned long up_rate_us;
 
 /*
@@ -105,13 +105,6 @@ static unsigned long up_rate_us;
  */
 #define DEFAULT_DOWN_RATE_US 29000;
 static unsigned long down_rate_us;
-
-/*
- * The frequency to set when waking up from sleep.
- * When sleep_ideal_freq=0 this will have no effect.
- */
-#define DEFAULT_SLEEP_WAKEUP_FREQ 99999999
-static unsigned int sleep_wakeup_freq;
 
 /*
  * Sampling rate, I highly recommend to leave it at 2.
@@ -165,11 +158,6 @@ static cpumask_t work_cpumask;
 static spinlock_t cpumask_lock;
 
 static unsigned int suspended;
-static int cpu_load;
-
-#define dprintk(flag,msg...) do { \
-	if (debug_mask & flag) printk(KERN_DEBUG msg); \
-	} while (0)
 
 enum {
 	ZEN_DEBUG_JUMPS=1,
@@ -195,29 +183,21 @@ struct cpufreq_governor cpufreq_gov_zen = {
 	.owner = THIS_MODULE,
 };
 
-inline static void zen_dynamics(struct zen_info_s *this_zen, struct cpufreq_policy *policy, int suspend) {
+inline static void zen_dynamics(struct zen_info_s *this_zen, struct cpufreq_policy *policy, int suspend, int cpu_load) {
 	if (suspend) {
-		this_zen->ideal_speed = // sleep_ideal_freq; but make sure it obeys the policy min/max
-			policy->max > sleep_ideal_freq ?
-			(sleep_ideal_freq > policy->min ? sleep_ideal_freq : policy->min) : policy->max;
-		up_rate_us = 60000;
+		this_zen->ideal_speed = sleep_ideal_freq;
+		up_rate_us = 70000;
 	} else {
 		if (cpu_load > (max_cpu_load - 5)) {
-		this_zen->ideal_speed = // awake_ideal_freq; but make sure it obeys the policy min/max
-			policy->min < awake_ideal_freq_three ?
-			(awake_ideal_freq_three < policy->max ? awake_ideal_freq_three : policy->max) : policy->min;
-		up_rate_us = 26000; 
+		this_zen->ideal_speed = awake_ideal_freq_three;
+		up_rate_us = 36000; 
 		} else {
 			if (cpu_load > 30) {
-				this_zen->ideal_speed = // awake_ideal_freq; but make sure it obeys the policy min/max
-				policy->min < awake_ideal_freq_two ?
-				(awake_ideal_freq_two < policy->max ? awake_ideal_freq_two : policy->max) : policy->min;
-				up_rate_us = 44000;
+				this_zen->ideal_speed = awake_ideal_freq_two;
+				up_rate_us = 49000;
 			} else {
-				this_zen->ideal_speed = // awake_ideal_freq; but make sure it obeys the policy min/max
-				policy->min < awake_ideal_freq_one ?
-				(awake_ideal_freq_one < policy->max ? awake_ideal_freq_one : policy->max) : policy->min;
-				up_rate_us = 56000;
+				this_zen->ideal_speed = awake_ideal_freq_one;
+				up_rate_us = 66000;
 			}	
 		}
 	}
@@ -234,7 +214,7 @@ inline static void zen_dynamics_allcpus(int cpu_load) {
 	for_each_online_cpu(i) {
 		struct zen_info_s *this_zen = &per_cpu(zen_info, i);
 		if (this_zen->enable)
-			zen_dynamics(this_zen,this_zen->cur_policy,suspended);
+			zen_dynamics(this_zen,this_zen->cur_policy,suspended,cpu_load);
 	}
 }
 
@@ -301,8 +281,6 @@ inline static int target_freq(struct cpufreq_policy *policy, struct zen_info_s *
 			// We should not get here:
 			// If we got here we tried to change to a validated new_freq which is different
 			// from old_freq, so there is no reason for us to remain at same frequency.
-			printk(KERN_WARNING "Zen: frequency change failed: %d to %d => %d\n",
-			       old_freq,new_freq,target);
 			return 0;
 		}
 	}
@@ -310,8 +288,6 @@ inline static int target_freq(struct cpufreq_policy *policy, struct zen_info_s *
 
 	__cpufreq_driver_target(policy, target, prefered_relation);
 
-	dprintk(ZEN_DEBUG_JUMPS,"ZenQ: jumping from %d to %d => %d (%d)\n",
-		old_freq,new_freq,target,policy->cur);
 
 	return target;
 }
@@ -350,15 +326,8 @@ static void cpufreq_zen_timer(unsigned long cpu)
 		cpu_load = 100 * (unsigned int)(delta_time - delta_idle) / (unsigned int)delta_time;
 	}
 
-	dprintk(ZEN_DEBUG_LOAD,"zenT @ %d: load %d (delta_time %llu)\n",
-		old_freq,cpu_load,delta_time);
-
 	this_zen->cur_cpu_load = cpu_load;
 	this_zen->old_freq = old_freq;
-
-	// Zen Dynamics
-	
-	zen_dynamics_allcpus(cpu_load);
 
 	// Scale up if load is above max or if there where no idle cycles since coming out of idle,
 	// additionally, if we are at or above the ideal_speed, verify we have been at this frequency
@@ -369,8 +338,6 @@ static void cpufreq_zen_timer(unsigned long cpu)
 			 (old_freq < this_zen->ideal_speed || delta_idle == 0 ||
 			  cputime64_sub(update_time, this_zen->freq_change_time) >= up_rate_us))
 		{
-			dprintk(ZEN_DEBUG_ALG,"zenT @ %d ramp up: load %d (delta_idle %llu)\n",
-				old_freq,cpu_load,delta_idle);
 			this_zen->ramp_dir = 1;
 			work_cpumask_set(cpu);
 			queue_work(up_wq, &freq_scale_work);
@@ -384,8 +351,6 @@ static void cpufreq_zen_timer(unsigned long cpu)
 		 (old_freq > this_zen->ideal_speed ||
 		  cputime64_sub(update_time, this_zen->freq_change_time) >= down_rate_us))
 	{
-		dprintk(ZEN_DEBUG_ALG,"zenT @ %d ramp down: load %d (delta_idle %llu)\n",
-			old_freq,cpu_load,delta_idle);
 		this_zen->ramp_dir = -1;
 		work_cpumask_set(cpu);
 		queue_work(down_wq, &freq_scale_work);
@@ -421,7 +386,7 @@ static void cpufreq_idle(void)
 		reset_timer(smp_processor_id(), this_zen);
 }
 
-/* We use the same work function to sale up and down */
+/* We use the same work function to scale up and down */
 static void cpufreq_zen_freq_change_time_work(struct work_struct *work)
 {
 	unsigned int cpu;
@@ -432,6 +397,11 @@ static void cpufreq_zen_freq_change_time_work(struct work_struct *work)
 	struct cpufreq_policy *policy;
 	unsigned int relation = CPUFREQ_RELATION_L;
 	unsigned int boosted;
+	u64 delta_idle;
+	u64 delta_time;
+	int cpu_load;
+	u64 update_time;
+	u64 now_idle;
 
 	for_each_possible_cpu(cpu) {
 		this_zen = &per_cpu(zen_info, cpu);
@@ -457,8 +427,6 @@ static void cpufreq_zen_freq_change_time_work(struct work_struct *work)
 					relation = CPUFREQ_RELATION_H;
 					// Skip normal logic
 					boosted = 1;
-					dprintk(ZEN_DEBUG_ALG,"zenQ @ %d boost %d\n",
-						old_freq,new_freq);
 				}
 			}
 			else {
@@ -468,26 +436,47 @@ static void cpufreq_zen_freq_change_time_work(struct work_struct *work)
 		}
 
 		if (boosted == 0) {
+
+			now_idle = get_cpu_idle_time_us(cpu, &update_time);
+
+			if (this_zen->idle_exit_time == 0 || update_time == this_zen->idle_exit_time)
+				return;
+
+			delta_idle = cputime64_sub(now_idle, this_zen->time_in_idle);
+			delta_time = cputime64_sub(update_time, this_zen->idle_exit_time);
+
+			// If timer ran less than 1ms after short-term sample started, retry.
+			if (delta_time < 1000) {
+				if (!timer_pending(&this_zen->timer))
+					reset_timer(cpu,this_zen);
+				return;
+			}
+
+			if (delta_idle > delta_time) {
+				cpu_load = 0;
+			} else {
+				cpu_load = 100 * (unsigned int)(delta_time - delta_idle) / (unsigned int)delta_time;
+			}
+
+			this_zen->cur_cpu_load = cpu_load;
+
+			// Zen Dynamics
+	
+			zen_dynamics(this_zen,policy,suspended,cpu_load);
+
 			if (old_freq != policy->cur) {
 				// frequency was changed by someone else?
-				printk(KERN_WARNING "Zen: frequency changed by 3rd party: %d to %d\n",
-						old_freq,policy->cur);
 				new_freq = old_freq;
 			}
+
 			else if (ramp_dir > 0 && nr_running() > 1) {
 				// ramp up logic:
 				if (old_freq < this_zen->ideal_speed)
 					new_freq = this_zen->ideal_speed;
-				else if (ramp_up_step) {
+				else {
 					new_freq = old_freq + ramp_up_step;
 					relation = CPUFREQ_RELATION_H;
 				}
-				else {
-					new_freq = policy->max;
-					relation = CPUFREQ_RELATION_H;
-				}
-				dprintk(ZEN_DEBUG_ALG,"zenQ @ %d ramp up: ramp_dir=%d ideal=%d\n",
-					old_freq,ramp_dir,this_zen->ideal_speed);
 			}
 			else if (ramp_dir < 0) {
 				// ramp down logic:
@@ -505,15 +494,11 @@ static void cpufreq_zen_freq_change_time_work(struct work_struct *work)
 					if (new_freq > old_freq) // min_cpu_load > max_cpu_load ?!
 						new_freq = old_freq -1;
 				}
-				dprintk(ZEN_DEBUG_ALG,"zenQ @ %d ramp down: ramp_dir=%d ideal=%d\n",
-					old_freq,ramp_dir,this_zen->ideal_speed);
 			}
 			else { // ramp_dir==0 ?! Could the timer change its mind about a queued ramp up/down
 				// before the work task gets to run?
 				// This may also happen if we refused to ramp up because the nr_running()==1
 				new_freq = old_freq;
-				dprintk(ZEN_DEBUG_ALG,"zenQ @ %d nothing: ramp_dir=%d nr_running=%lu\n",
-					old_freq,ramp_dir,nr_running());
 			}
 		}
 
@@ -600,23 +585,6 @@ static ssize_t store_sleep_ideal_freq(struct kobject *kobj, struct attribute *at
 		if (suspended)
 			zen_dynamics_allcpus(0);
 	}
-	return count;
-}
-
-static ssize_t show_sleep_wakeup_freq(struct kobject *kobj, struct attribute *attr, char *buf)
-{
-	return sprintf(buf, "%u\n", sleep_wakeup_freq);
-}
-
-static ssize_t store_sleep_wakeup_freq(struct kobject *kobj, struct attribute *attr, const char *buf, size_t count)
-{
-	ssize_t res;
-	unsigned long input;
-	res = strict_strtoul(buf, 0, &input);
-	if (res < 0)
-		return -EINVAL;
-	if (input >= 0)
-		sleep_wakeup_freq = input;
 	return count;
 }
 
@@ -818,8 +786,6 @@ static ssize_t store_boost_pulse(struct kobject *kobj, struct attribute *attr, c
 		boost_pulse = DEFAULT_BOOST_PULSE;
 	else
 		boost_pulse = input;
-	dprintk(ZEN_DEBUG_ALG,"Zen: boost pulse %lu/%lu enabled %d\n",
-		input,boost_pulse,boost_enabled);
 	return count;
 }
 
@@ -831,7 +797,6 @@ define_global_rw_attr(debug_mask);
 define_global_rw_attr(up_rate_us);
 define_global_rw_attr(down_rate_us);
 define_global_rw_attr(sleep_ideal_freq);
-define_global_rw_attr(sleep_wakeup_freq);
 define_global_rw_attr(awake_ideal_freq_one);
 define_global_rw_attr(awake_ideal_freq_two);
 define_global_rw_attr(awake_ideal_freq_three);
@@ -849,7 +814,6 @@ static struct attribute * zen_attributes[] = {
 	&up_rate_us_attr.attr,
 	&down_rate_us_attr.attr,
 	&sleep_ideal_freq_attr.attr,
-	&sleep_wakeup_freq_attr.attr,
 	&awake_ideal_freq_one_attr.attr,
 	&awake_ideal_freq_two_attr.attr,
 	&awake_ideal_freq_three_attr.attr,
@@ -885,11 +849,9 @@ static int cpufreq_governor_zen(struct cpufreq_policy *new_policy,
 
 		this_zen->enable = 1;
 
-		zen_dynamics(this_zen,new_policy,suspended);
+		zen_dynamics(this_zen,new_policy,suspended,91);
 
 		this_zen->freq_table = cpufreq_frequency_get_table(cpu);
-		if (!this_zen->freq_table)
-			printk(KERN_WARNING "Zen: no frequency table for cpu %d?!\n",cpu);
 
 		smp_wmb();
 
@@ -911,15 +873,13 @@ static int cpufreq_governor_zen(struct cpufreq_policy *new_policy,
 		break;
 
 	case CPUFREQ_GOV_LIMITS:
-		zen_dynamics(this_zen,new_policy,suspended);
+		zen_dynamics(this_zen,new_policy,suspended,91);
 
 		if (this_zen->cur_policy->cur > new_policy->max) {
-			dprintk(ZEN_DEBUG_JUMPS,"ZenI: jumping to new max freq: %d\n",new_policy->max);
 			__cpufreq_driver_target(this_zen->cur_policy,
 						new_policy->max, CPUFREQ_RELATION_H);
 		}
 		else if (this_zen->cur_policy->cur < new_policy->min) {
-			dprintk(ZEN_DEBUG_JUMPS,"ZenI: jumping to new min freq: %d\n",new_policy->min);
 			__cpufreq_driver_target(this_zen->cur_policy,
 						new_policy->min, CPUFREQ_RELATION_L);
 		}
@@ -956,11 +916,10 @@ static void zen_suspend(int cpu, int suspend)
 	if (!this_zen->enable)
 		return;
 
-	zen_dynamics(this_zen,policy,suspend);
+	zen_dynamics(this_zen,policy,suspend,0);
 	if (!suspend) { // resume at max speed:
-		new_freq = validate_freq(policy,sleep_wakeup_freq);
+		new_freq = policy->max;
 
-		dprintk(ZEN_DEBUG_JUMPS,"ZenS: awaking at %d\n",new_freq);
 
 		__cpufreq_driver_target(policy, new_freq,
 					CPUFREQ_RELATION_L);
@@ -972,7 +931,6 @@ static void zen_suspend(int cpu, int suspend)
 		this_zen->freq_change_time_in_idle =
 			get_cpu_idle_time_us(cpu,&this_zen->freq_change_time);
 
-		dprintk(ZEN_DEBUG_JUMPS,"ZenS: suspending at %d\n",policy->cur);
 	}
 
 	reset_timer(smp_processor_id(),this_zen);
@@ -1012,7 +970,6 @@ static int __init cpufreq_zen_init(void)
 	up_rate_us = DEFAULT_UP_RATE_US;
 	down_rate_us = DEFAULT_DOWN_RATE_US;
 	sleep_ideal_freq = DEFAULT_SLEEP_IDEAL_FREQ;
-	sleep_wakeup_freq = DEFAULT_SLEEP_WAKEUP_FREQ;
 	awake_ideal_freq_one = DEFAULT_AWAKE_IDEAL_FREQ_ONE;
 	awake_ideal_freq_two = DEFAULT_AWAKE_IDEAL_FREQ_TWO;
 	awake_ideal_freq_three = DEFAULT_AWAKE_IDEAL_FREQ_THREE;
@@ -1075,6 +1032,6 @@ static void __exit cpufreq_zen_exit(void)
 
 module_exit(cpufreq_zen_exit);
 
-MODULE_AUTHOR ("Erasmux");
-MODULE_DESCRIPTION ("'cpufreq_zen' - A smart cpufreq governor");
+MODULE_AUTHOR ("Alin");
+MODULE_DESCRIPTION ("'cpufreq_zen' - A dynamic SmartassV2 based cpufreq governor");
 MODULE_LICENSE ("GPL");
