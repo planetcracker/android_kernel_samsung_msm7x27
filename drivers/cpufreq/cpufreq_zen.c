@@ -77,13 +77,13 @@ static unsigned int ramp_down_step;
 /*
  * CPU freq will be increased if measured load > max_cpu_load;
  */
-#define DEFAULT_MAX_CPU_LOAD 85
+#define DEFAULT_MAX_CPU_LOAD 95
 static unsigned long max_cpu_load;
 
 /*
  * CPU freq will be decreased if measured load < min_cpu_load;
  */
-#define DEFAULT_MIN_CPU_LOAD 50
+#define DEFAULT_MIN_CPU_LOAD 65
 static unsigned long min_cpu_load;
 
 /*
@@ -348,6 +348,12 @@ static void cpufreq_zen_timer(unsigned long cpu)
 			this_zen->ideal_speed = 122880;
 			up_rate_us = 56000;
 		}	
+	}
+
+	if (suspended)
+	{	
+		this_zen->ideal_speed = 66000;
+		up_rate_us = 60000;
 	}
 
 	// Scale up if load is above max or if there where no idle cycles since coming out of idle,
