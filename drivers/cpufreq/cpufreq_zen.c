@@ -264,7 +264,7 @@ static void cpufreq_zen_timer(unsigned long cpu)
 		return;
 	}
 
-	if (delta_idle > delta_time) {
+	if ((delta_time == 0) || (delta_idle > delta_time)) {
 		cpu_load = 0;
 	} else {
 		cpu_load = 100 * (unsigned int)(delta_time - delta_idle) / (unsigned int)delta_time;
