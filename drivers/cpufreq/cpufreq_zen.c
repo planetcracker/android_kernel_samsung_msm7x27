@@ -16,8 +16,8 @@
  *
  * Based on SmartassV2 by Erasmux
  *
- * Based on the interactive governor By Mike Chan (mike@android.com)
- * which was adaptated to 2.6.29 kernel by Nadlabak (pavel@doshaska.net)
+ * Based on the Interactive governor By Mike Chan (mike@android.com)
+ * which was adapted to 2.6.29 kernel by Nadlabak (pavel@doshaska.net)
  *
  * SMP support based on mod by faux123
  *
@@ -34,6 +34,8 @@
 #include <linux/moduleparam.h>
 #include <asm/cputime.h>
 #include <linux/earlysuspend.h>
+#include <linux/slab.h>
+#include <linux/input.h>
 
 
 /******************** Tunable parameters: ********************/
@@ -43,89 +45,48 @@
  * towards the ideal frequency and slower after it has passed it. Similarly,
  * lowering the frequency towards the ideal frequency is faster than below it.
  */
-#define DEFAULT_AWAKE_IDEAL_FREQ_ONE 122880
-static unsigned int awake_ideal_freq_one;
+#define DEFAULT_IDEAL_STEP_ONE 122880
+static unsigned int ideal_step_one;
 
-#define DEFAULT_AWAKE_IDEAL_FREQ_TWO 245760
-static unsigned int awake_ideal_freq_two;
+#define DEFAULT_IDEAL_STEP_TWO 245760
+static unsigned int ideal_step_two;
 
-#define DEFAULT_AWAKE_IDEAL_FREQ_THREE 360000
-static unsigned int awake_ideal_freq_three;
+#define DEFAULT_IDEAL_STEP_THREE 360000
+static unsigned int ideal_step_three;
 
-#define DEFAULT_BOOST_FREQ 604800
-static unsigned int boost_freq;
-
-/*
- * The "ideal" frequency to use when suspended.
- * When set to 0, the governor will not track the suspended state (meaning
- * that practically when sleep_ideal_freq==0 the awake_ideal_freq is used
- * also when suspended).
- */
-#define DEFAULT_SLEEP_IDEAL_FREQ 66000
-static unsigned int sleep_ideal_freq;
+#define DEFAULT_IDEAL_STEP_FOUR 480000
+static unsigned int ideal_step_four;
 
 /*
- * Freqeuncy delta when ramping up above the ideal freqeuncy.
+ * Frequency delta when ramping up above the ideal frequency.
  * Zero disables and causes to always jump straight to max frequency.
- * When below the ideal freqeuncy we always ramp up to the ideal freq.
+ * When below the ideal frequency we always ramp up to the ideal freq.
  */
-#define DEFAULT_RAMP_UP_STEP 60000
 static unsigned int ramp_up_step;
 
 /*
- * Freqeuncy delta when ramping down below the ideal frequency.
- * Zero disables and will calculate ramp down according to load heuristic.
- * When above the ideal freqeuncy we always ramp down to the ideal freq.
+ * CPU freq will be increased if measured load > dynamics_thd;
  */
-#define DEFAULT_RAMP_DOWN_STEP 120000
-static unsigned int ramp_down_step;
-
-/*
- * CPU freq will be increased if measured load > max_cpu_load;
- */
-#define DEFAULT_MAX_CPU_LOAD 95
-static unsigned long max_cpu_load;
+#define DEFAULT_DYNAMICS_THRESHOLD 97
+static unsigned long dynamics_thd;
 
 /*
  * CPU freq will be decreased if measured load < min_cpu_load;
  */
-#define DEFAULT_MIN_CPU_LOAD 70
 static unsigned long min_cpu_load;
 
 /*
  * The minimum amount of time to spend at a frequency before we can ramp up.
  * Notice we ignore this when we are below the ideal frequency.
  */
-#define DEFAULT_UP_RATE_US 49000;
+#define DEFAULT_UP_RATE_US 31000;
 static unsigned long up_rate_us;
-
-/*
- * The minimum amount of time to spend at a frequency before we can ramp down.
- * Notice we ignore this when we are above the ideal frequency.
- */
-#define DEFAULT_DOWN_RATE_US 29000;
-static unsigned long down_rate_us;
 
 /*
  * Sampling rate, I highly recommend to leave it at 2.
  */
 #define DEFAULT_SAMPLE_RATE_JIFFIES 2
 static unsigned int sample_rate_jiffies;
-
-/*
- * Boost enabled
- */
-#define DEFAULT_BOOST_ENABLED 1
-static unsigned int boost_enabled;
-
-/*
- * Boost pulse
- */
-#define DEFAULT_BOOST_PULSE 300000
-#define MAX_BOOST_PULSE 2500000
-static unsigned long boost_pulse;
-static u64 boost_pulse_time;
-extern unsigned int touch_state_val;
 
 /*************** End of tunables ***************/
 
@@ -145,7 +106,6 @@ struct zen_info_s {
 	int ramp_dir;
 	unsigned int enable;
 	int ideal_speed;
-	int boost_speed;
 };
 static DEFINE_PER_CPU(struct zen_info_s, zen_info);
 
@@ -158,17 +118,6 @@ static cpumask_t work_cpumask;
 static spinlock_t cpumask_lock;
 
 static unsigned int suspended;
-
-enum {
-	ZEN_DEBUG_JUMPS=1,
-	ZEN_DEBUG_LOAD=2,
-	ZEN_DEBUG_ALG=4
-};
-
-/*
- * Combination of the above debug flags.
- */
-static unsigned long debug_mask;
 
 static int cpufreq_governor_zen(struct cpufreq_policy *policy,
 		unsigned int event);
@@ -183,39 +132,34 @@ struct cpufreq_governor cpufreq_gov_zen = {
 	.owner = THIS_MODULE,
 };
 
-inline static void zen_dynamics(struct zen_info_s *this_zen, struct cpufreq_policy *policy, int suspend, int cpu_load) {
-	if (suspend) {
-		this_zen->ideal_speed = sleep_ideal_freq;
-		up_rate_us = 70000;
+inline static void zen_dynamics_suspend(struct zen_info_s *this_zen, struct cpufreq_policy *policy) {
+		this_zen->ideal_speed = policy->min;
+		up_rate_us = dynamics_thd*750;
+}
+
+inline static void zen_dynamics_awake(struct zen_info_s *this_zen, struct cpufreq_policy *policy) {
+
+	if (this_zen->ideal_speed != ideal_step_one) {
+		if (this_zen->cur_cpu_load < (dynamics_thd - 70))
+			this_zen->ideal_speed = ideal_step_one;
+			
 	} else {
-		if (cpu_load > (max_cpu_load - 5)) {
-		this_zen->ideal_speed = awake_ideal_freq_three;
-		up_rate_us = 36000; 
-		} else {
-			if (cpu_load > 30) {
-				this_zen->ideal_speed = awake_ideal_freq_two;
-				up_rate_us = 49000;
-			} else {
-				this_zen->ideal_speed = awake_ideal_freq_one;
-				up_rate_us = 66000;
-			}	
+		if (this_zen->ideal_speed != ideal_step_two)  {
+			if (this_zen->cur_cpu_load > (dynamics_thd - 70) && this_zen->cur_cpu_load < (dynamics_thd - 45)) 
+				this_zen->ideal_speed = ideal_step_two;
+		} else { if (this_zen->ideal_speed != ideal_step_three) {
+				if (this_zen->cur_cpu_load > (dynamics_thd - 45) && this_zen->cur_cpu_load < (dynamics_thd - 35))
+					this_zen->ideal_speed = ideal_step_three;
+			} else { if (this_zen->cur_cpu_load > (dynamics_thd - 35)) 
+					this_zen->ideal_speed = ideal_step_four; }
 		}
 	}
+	up_rate_us = (110 - this_zen->cur_cpu_load)*dynamics_thd*8; 
 }
 
-inline static void zen_update_boost(struct zen_info_s *this_zen, struct cpufreq_policy *policy) {
-this_zen->boost_speed = //boost_freq; but make sure it obeys the policy min/max
-			policy->min < boost_freq ?
-			(boost_freq < policy->max ? boost_freq : policy->max) : policy->min;
-}
-
-inline static void zen_dynamics_allcpus(int cpu_load) {
-	unsigned int i;
-	for_each_online_cpu(i) {
-		struct zen_info_s *this_zen = &per_cpu(zen_info, i);
-		if (this_zen->enable)
-			zen_dynamics(this_zen,this_zen->cur_policy,suspended,cpu_load);
-	}
+inline static void zen_dynamics_update(void) {
+	min_cpu_load = dynamics_thd - 25;
+	ramp_up_step = 36000*(100-dynamics_thd);
 }
 
 inline static unsigned int validate_freq(struct cpufreq_policy *policy, int freq) {
@@ -332,7 +276,7 @@ static void cpufreq_zen_timer(unsigned long cpu)
 	// Scale up if load is above max or if there where no idle cycles since coming out of idle,
 	// additionally, if we are at or above the ideal_speed, verify we have been at this frequency
 	// for at least up_rate_us:
-	if (cpu_load > max_cpu_load || delta_idle == 0)
+	if (cpu_load > dynamics_thd || delta_idle == 0)
 	{
 		if (old_freq < policy->max &&
 			 (old_freq < this_zen->ideal_speed || delta_idle == 0 ||
@@ -345,11 +289,10 @@ static void cpufreq_zen_timer(unsigned long cpu)
 		}
 		else this_zen->ramp_dir = 0;
 	}
-	// Similarly for scale down: load should be below min and if we are at or below ideal
-	// frequency we require that we have been at this frequency for at least down_rate_us:
+	// Similarly for scale down: load should be below min
 	else if (cpu_load < min_cpu_load && old_freq > policy->min &&
 		 (old_freq > this_zen->ideal_speed ||
-		  cputime64_sub(update_time, this_zen->freq_change_time) >= down_rate_us))
+		  cputime64_sub(update_time, this_zen->freq_change_time) >= 10000))
 	{
 		this_zen->ramp_dir = -1;
 		work_cpumask_set(cpu);
@@ -396,12 +339,7 @@ static void cpufreq_zen_freq_change_time_work(struct work_struct *work)
 	struct zen_info_s *this_zen;
 	struct cpufreq_policy *policy;
 	unsigned int relation = CPUFREQ_RELATION_L;
-	unsigned int boosted;
-	u64 delta_idle;
-	u64 delta_time;
-	int cpu_load;
-	u64 update_time;
-	u64 now_idle;
+
 
 	for_each_possible_cpu(cpu) {
 		this_zen = &per_cpu(zen_info, cpu);
@@ -414,92 +352,37 @@ static void cpufreq_zen_freq_change_time_work(struct work_struct *work)
 		old_freq = this_zen->old_freq;
 		policy = this_zen->cur_policy;
 
-		// boost pulse
-		boosted = 0;
-		if (boost_pulse > 0) {
-			u64 now = ktime_to_us(ktime_get());
-			if (now <= boost_pulse_time + boost_pulse) {
-				// boost logic:
-				if (boost_enabled > 0 &&
-					old_freq < this_zen->boost_speed && touch_state_val) {
-					// Jump to ideal frequency
-					new_freq = this_zen->boost_speed;
-					relation = CPUFREQ_RELATION_H;
-					// Skip normal logic
-					boosted = 1;
-				}
-			}
+	
+		if (!suspended)
+			zen_dynamics_awake(this_zen,policy);
+
+		if (old_freq != policy->cur) {
+			// frequency was changed by someone else?
+			new_freq = old_freq;
+		}
+			else if (ramp_dir > 0 && nr_running() > 1) {
+			// ramp up logic:
+			if (old_freq < this_zen->ideal_speed)
+				new_freq = this_zen->ideal_speed;
 			else {
-				// Reset boost pulse
-				boost_pulse = 0;
+				new_freq = old_freq + ramp_up_step;
+				relation = CPUFREQ_RELATION_H;
 			}
 		}
-
-		if (boosted == 0) {
-
-			now_idle = get_cpu_idle_time_us(cpu, &update_time);
-
-			if (this_zen->idle_exit_time == 0 || update_time == this_zen->idle_exit_time)
-				return;
-
-			delta_idle = cputime64_sub(now_idle, this_zen->time_in_idle);
-			delta_time = cputime64_sub(update_time, this_zen->idle_exit_time);
-
-			// If timer ran less than 1ms after short-term sample started, retry.
-			if (delta_time < 1000) {
-				if (!timer_pending(&this_zen->timer))
-					reset_timer(cpu,this_zen);
-				return;
+		else if (ramp_dir < 0) {
+			// ramp down logic:
+			if (old_freq > this_zen->ideal_speed) {
+				new_freq = this_zen->ideal_speed;
+				relation = CPUFREQ_RELATION_H;
 			}
-
-			if (delta_idle > delta_time) {
-				cpu_load = 0;
-			} else {
-				cpu_load = 100 * (unsigned int)(delta_time - delta_idle) / (unsigned int)delta_time;
+			else {
+				new_freq = policy->min;
 			}
-
-			this_zen->cur_cpu_load = cpu_load;
-
-			// Zen Dynamics
-	
-			zen_dynamics(this_zen,policy,suspended,cpu_load);
-
-			if (old_freq != policy->cur) {
-				// frequency was changed by someone else?
-				new_freq = old_freq;
-			}
-
-			else if (ramp_dir > 0 && nr_running() > 1) {
-				// ramp up logic:
-				if (old_freq < this_zen->ideal_speed)
-					new_freq = this_zen->ideal_speed;
-				else {
-					new_freq = old_freq + ramp_up_step;
-					relation = CPUFREQ_RELATION_H;
-				}
-			}
-			else if (ramp_dir < 0) {
-				// ramp down logic:
-				if (old_freq > this_zen->ideal_speed) {
-					new_freq = this_zen->ideal_speed;
-					relation = CPUFREQ_RELATION_H;
-				}
-				else if (ramp_down_step)
-					new_freq = old_freq - ramp_down_step;
-				else {
-					// Load heuristics: Adjust new_freq such that, assuming a linear
-					// scaling of load vs. frequency, the load in the new frequency
-					// will be max_cpu_load:
-					new_freq = old_freq * this_zen->cur_cpu_load / max_cpu_load;
-					if (new_freq > old_freq) // min_cpu_load > max_cpu_load ?!
-						new_freq = old_freq -1;
-				}
-			}
-			else { // ramp_dir==0 ?! Could the timer change its mind about a queued ramp up/down
-				// before the work task gets to run?
-				// This may also happen if we refused to ramp up because the nr_running()==1
-				new_freq = old_freq;
-			}
+		}
+		else { // ramp_dir==0 ?! Could the timer change its mind about a queued ramp up/down
+			// before the work task gets to run?
+			// This may also happen if we refused to ramp up because the nr_running()==1
+			new_freq = old_freq;
 		}
 
 		// do actual ramp up (returns 0, if frequency change failed):
@@ -516,22 +399,6 @@ static void cpufreq_zen_freq_change_time_work(struct work_struct *work)
 		else if (timer_pending(&this_zen->timer))
 			del_timer(&this_zen->timer);
 	}
-}
-
-static ssize_t show_debug_mask(struct kobject *kobj, struct attribute *attr, char *buf)
-{
-	return sprintf(buf, "%lu\n", debug_mask);
-}
-
-static ssize_t store_debug_mask(struct kobject *kobj, struct attribute *attr, const char *buf, size_t count)
-{
-	ssize_t res;
-	unsigned long input;
-	res = strict_strtoul(buf, 0, &input);
-	if (res < 0)
-		return -EINVAL;
-	debug_mask = input;
-	return count;
 }
 
 static ssize_t show_up_rate_us(struct kobject *kobj, struct attribute *attr, char *buf)
@@ -551,110 +418,12 @@ static ssize_t store_up_rate_us(struct kobject *kobj, struct attribute *attr, co
 	return count;
 }
 
-static ssize_t show_down_rate_us(struct kobject *kobj, struct attribute *attr, char *buf)
+static ssize_t show_ideal_step_one(struct kobject *kobj, struct attribute *attr, char *buf)
 {
-	return sprintf(buf, "%lu\n", down_rate_us);
+	return sprintf(buf, "%u\n", ideal_step_one);
 }
 
-static ssize_t store_down_rate_us(struct kobject *kobj, struct attribute *attr, const char *buf, size_t count)
-{
-	ssize_t res;
-	unsigned long input;
-	res = strict_strtoul(buf, 0, &input);
-	if (res < 0)
-		return -EINVAL;
-	if (input >= 0 && input <= 100000000)
-		down_rate_us = input;
-	return count;
-}
-
-static ssize_t show_sleep_ideal_freq(struct kobject *kobj, struct attribute *attr, char *buf)
-{
-	return sprintf(buf, "%u\n", sleep_ideal_freq);
-}
-
-static ssize_t store_sleep_ideal_freq(struct kobject *kobj, struct attribute *attr, const char *buf, size_t count)
-{
-	ssize_t res;
-	unsigned long input;
-	res = strict_strtoul(buf, 0, &input);
-	if (res < 0)
-		return -EINVAL;
-	if (input >= 0) {
-		sleep_ideal_freq = input;
-		if (suspended)
-			zen_dynamics_allcpus(0);
-	}
-	return count;
-}
-
-static ssize_t show_awake_ideal_freq_one(struct kobject *kobj, struct attribute *attr, char *buf)
-{
-	return sprintf(buf, "%u\n", awake_ideal_freq_one);
-}
-
-static ssize_t store_awake_ideal_freq_one(struct kobject *kobj, struct attribute *attr, const char *buf, size_t count)
-{
-	ssize_t res;
-	unsigned long input;
-	res = strict_strtoul(buf, 0, &input);
-	if (res < 0)
-		return -EINVAL;
-	if (input >= 0) {
-		awake_ideal_freq_one = input;
-		if (!suspended)
-			zen_dynamics_allcpus(10);
-	}
-	return count;
-}
-
-static ssize_t show_awake_ideal_freq_two(struct kobject *kobj, struct attribute *attr, char *buf)
-{
-	return sprintf(buf, "%u\n", awake_ideal_freq_two);
-}
-
-static ssize_t store_awake_ideal_freq_two(struct kobject *kobj, struct attribute *attr, const char *buf, size_t count)
-{
-	ssize_t res;
-	unsigned long input;
-	res = strict_strtoul(buf, 0, &input);
-	if (res < 0)
-		return -EINVAL;
-	if (input >= 0) {
-		awake_ideal_freq_two = input;
-		if (!suspended)
-			zen_dynamics_allcpus(40);
-	}
-	return count;
-}
-
-static ssize_t show_awake_ideal_freq_three(struct kobject *kobj, struct attribute *attr, char *buf)
-{
-	return sprintf(buf, "%u\n", awake_ideal_freq_three);
-}
-
-static ssize_t store_awake_ideal_freq_three(struct kobject *kobj, struct attribute *attr, const char *buf, size_t count)
-{
-	ssize_t res;
-	unsigned long input;
-	res = strict_strtoul(buf, 0, &input);
-	if (res < 0)
-		return -EINVAL;
-	if (input >= 0) {
-		awake_ideal_freq_three = input;
-		if (!suspended)
-			zen_dynamics_allcpus(91);
-	}
-	return count;
-}
-
-
-static ssize_t show_boost_freq(struct kobject *kobj, struct attribute *attr, char *buf)
-{
-	return sprintf(buf, "%u\n", boost_freq);
-}
-
-static ssize_t store_boost_freq(struct kobject *kobj, struct attribute *attr, const char *buf, size_t count)
+static ssize_t store_ideal_step_one(struct kobject *kobj, struct attribute *attr, const char *buf, size_t count)
 {
 	ssize_t res;
 	unsigned long input;
@@ -662,7 +431,60 @@ static ssize_t store_boost_freq(struct kobject *kobj, struct attribute *attr, co
 	if (res < 0)
 		return -EINVAL;
 	if (input >= 0) 
-		boost_freq = input;
+		ideal_step_one = input;
+	return count;
+}
+
+static ssize_t show_ideal_step_two(struct kobject *kobj, struct attribute *attr, char *buf)
+{
+	return sprintf(buf, "%u\n", ideal_step_two);
+}
+
+static ssize_t store_ideal_step_two(struct kobject *kobj, struct attribute *attr, const char *buf, size_t count)
+{
+	ssize_t res;
+	unsigned long input;
+	res = strict_strtoul(buf, 0, &input);
+	if (res < 0)
+		return -EINVAL;
+	if (input >= 0) 
+		ideal_step_two = input;
+	return count;
+}
+
+static ssize_t show_ideal_step_three(struct kobject *kobj, struct attribute *attr, char *buf)
+{
+	return sprintf(buf, "%u\n", ideal_step_three);
+}
+
+static ssize_t store_ideal_step_three(struct kobject *kobj, struct attribute *attr, const char *buf, size_t count)
+{
+	ssize_t res;
+	unsigned long input;
+	res = strict_strtoul(buf, 0, &input);
+	if (res < 0)
+		return -EINVAL;
+	if (input >= 0) {
+		ideal_step_three = input;
+	}
+	return count;
+}
+
+static ssize_t show_ideal_step_four(struct kobject *kobj, struct attribute *attr, char *buf)
+{
+	return sprintf(buf, "%u\n", ideal_step_four);
+}
+
+static ssize_t store_ideal_step_four(struct kobject *kobj, struct attribute *attr, const char *buf, size_t count)
+{
+	ssize_t res;
+	unsigned long input;
+	res = strict_strtoul(buf, 0, &input);
+	if (res < 0)
+		return -EINVAL;
+	if (input >= 0) {
+		ideal_step_four = input;
+	}
 	return count;
 }
 
@@ -700,37 +522,22 @@ static ssize_t store_ramp_up_step(struct kobject *kobj, struct attribute *attr, 
 	return count;
 }
 
-static ssize_t show_ramp_down_step(struct kobject *kobj, struct attribute *attr, char *buf)
+static ssize_t show_dynamics_thd(struct kobject *kobj, struct attribute *attr, char *buf)
 {
-	return sprintf(buf, "%u\n", ramp_down_step);
+	return sprintf(buf, "%lu\n", dynamics_thd);
 }
 
-static ssize_t store_ramp_down_step(struct kobject *kobj, struct attribute *attr, const char *buf, size_t count)
+static ssize_t store_dynamics_thd(struct kobject *kobj, struct attribute *attr, const char *buf, size_t count)
 {
 	ssize_t res;
 	unsigned long input;
 	res = strict_strtoul(buf, 0, &input);
 	if (res < 0)
 		return -EINVAL;
-	if (input >= 0)
-		ramp_down_step = input;
-	return count;
-}
-
-static ssize_t show_max_cpu_load(struct kobject *kobj, struct attribute *attr, char *buf)
-{
-	return sprintf(buf, "%lu\n", max_cpu_load);
-}
-
-static ssize_t store_max_cpu_load(struct kobject *kobj, struct attribute *attr, const char *buf, size_t count)
-{
-	ssize_t res;
-	unsigned long input;
-	res = strict_strtoul(buf, 0, &input);
-	if (res < 0)
-		return -EINVAL;
-	if (input > 0 && input <= 100)
-		max_cpu_load = input;
+	if (input > 0 && input <= 100) {
+		dynamics_thd = input;
+		zen_dynamics_update();
+	}
 	return count;
 }
 
@@ -751,80 +558,35 @@ static ssize_t store_min_cpu_load(struct kobject *kobj, struct attribute *attr, 
 	return count;
 }
 
-static ssize_t show_boost_enabled(struct kobject *kobj, struct attribute *attr, char *buf)
-{
-	return sprintf(buf, "%u\n", boost_enabled);
-}
-
-static ssize_t store_boost_enabled(struct kobject *kobj, struct attribute *attr, const char *buf, size_t count)
-{
-	ssize_t res;
-	unsigned long input;
-	res = strict_strtoul(buf, 0, &input);
-	if (res < 0)
-		return -EINVAL;
-	boost_enabled = (input == 0 ? 0 : 1);
-	return count;
-}
-
-static ssize_t show_boost_pulse(struct kobject *kobj, struct attribute *attr, char *buf)
-{
-	return sprintf(buf, "%lu\n", boost_pulse);
-}
-
-static ssize_t store_boost_pulse(struct kobject *kobj, struct attribute *attr, const char *buf, size_t count)
-{
-	ssize_t res;
-	unsigned long input;
-	res = strict_strtoul(buf, 0, &input);
-	if (res < 0)
-		return -EINVAL;
-	boost_pulse_time = ktime_to_us(ktime_get());
-	if (input > MAX_BOOST_PULSE)
-		boost_pulse = MAX_BOOST_PULSE;
-	else if (input <= 1)
-		boost_pulse = DEFAULT_BOOST_PULSE;
-	else
-		boost_pulse = input;
-	return count;
-}
 
 #define define_global_rw_attr(_name)		\
 static struct global_attr _name##_attr =	\
 	__ATTR(_name, 0666, show_##_name, store_##_name)
 
-define_global_rw_attr(debug_mask);
-define_global_rw_attr(up_rate_us);
-define_global_rw_attr(down_rate_us);
-define_global_rw_attr(sleep_ideal_freq);
-define_global_rw_attr(awake_ideal_freq_one);
-define_global_rw_attr(awake_ideal_freq_two);
-define_global_rw_attr(awake_ideal_freq_three);
-define_global_rw_attr(sample_rate_jiffies);
-define_global_rw_attr(ramp_up_step);
-define_global_rw_attr(ramp_down_step);
-define_global_rw_attr(max_cpu_load);
-define_global_rw_attr(min_cpu_load);
-define_global_rw_attr(boost_enabled);
-define_global_rw_attr(boost_pulse);
-define_global_rw_attr(boost_freq);
+#define define_global_ro_attr(_name)		\
+static struct global_attr _name##_attr =	\
+	__ATTR(_name, 0444, show_##_name, store_##_name)
+
+define_global_ro_attr(up_rate_us);
+define_global_rw_attr(ideal_step_one);
+define_global_rw_attr(ideal_step_two);
+define_global_rw_attr(ideal_step_three);
+define_global_rw_attr(ideal_step_four);
+define_global_ro_attr(sample_rate_jiffies);
+define_global_ro_attr(ramp_up_step);
+define_global_rw_attr(dynamics_thd);
+define_global_ro_attr(min_cpu_load);
 
 static struct attribute * zen_attributes[] = {
-	&debug_mask_attr.attr,
 	&up_rate_us_attr.attr,
-	&down_rate_us_attr.attr,
-	&sleep_ideal_freq_attr.attr,
-	&awake_ideal_freq_one_attr.attr,
-	&awake_ideal_freq_two_attr.attr,
-	&awake_ideal_freq_three_attr.attr,
+	&ideal_step_one_attr.attr,
+	&ideal_step_two_attr.attr,
+	&ideal_step_three_attr.attr,
+	&ideal_step_four_attr.attr,
 	&sample_rate_jiffies_attr.attr,
 	&ramp_up_step_attr.attr,
-	&ramp_down_step_attr.attr,
-	&max_cpu_load_attr.attr,
+	&dynamics_thd_attr.attr,
 	&min_cpu_load_attr.attr,
-	&boost_enabled_attr.attr,
-	&boost_pulse_attr.attr,
-	&boost_freq_attr.attr,
 	NULL,
 };
 
@@ -848,8 +610,11 @@ static int cpufreq_governor_zen(struct cpufreq_policy *new_policy,
 		this_zen->cur_policy = new_policy;
 
 		this_zen->enable = 1;
-
-		zen_dynamics(this_zen,new_policy,suspended,91);
+		if (suspended)
+			zen_dynamics_suspend(this_zen,new_policy);
+		else
+			this_zen->ideal_speed = ideal_step_three;
+			up_rate_us = 31000;
 
 		this_zen->freq_table = cpufreq_frequency_get_table(cpu);
 
@@ -873,7 +638,11 @@ static int cpufreq_governor_zen(struct cpufreq_policy *new_policy,
 		break;
 
 	case CPUFREQ_GOV_LIMITS:
-		zen_dynamics(this_zen,new_policy,suspended,91);
+		if (suspended)
+			zen_dynamics_suspend(this_zen,new_policy);
+		else
+			this_zen->ideal_speed = ideal_step_three;
+			up_rate_us = 31000;
 
 		if (this_zen->cur_policy->cur > new_policy->max) {
 			__cpufreq_driver_target(this_zen->cur_policy,
@@ -916,21 +685,22 @@ static void zen_suspend(int cpu, int suspend)
 	if (!this_zen->enable)
 		return;
 
-	zen_dynamics(this_zen,policy,suspend,0);
-	if (!suspend) { // resume at max speed:
-		new_freq = policy->max;
-
-
-		__cpufreq_driver_target(policy, new_freq,
-					CPUFREQ_RELATION_L);
-	} else {
+	if (suspend) {
+		zen_dynamics_suspend(this_zen,policy);
 		// to avoid wakeup issues with quick sleep/wakeup don't change actual frequency when entering sleep
 		// to allow some time to settle down. Instead we just reset our statistics (and reset the timer).
 		// Eventually, the timer will adjust the frequency if necessary.
 
 		this_zen->freq_change_time_in_idle =
 			get_cpu_idle_time_us(cpu,&this_zen->freq_change_time);
+	} else {
+		this_zen->ideal_speed = ideal_step_three;
+		up_rate_us = 20000;
 
+		new_freq = policy->max;
+
+		__cpufreq_driver_target(policy, new_freq,
+					CPUFREQ_RELATION_L);
 	}
 
 	reset_timer(smp_processor_id(),this_zen);
@@ -938,7 +708,7 @@ static void zen_suspend(int cpu, int suspend)
 
 static void zen_early_suspend(struct early_suspend *handler) {
 	int i;
-	if (suspended || sleep_ideal_freq==0) // disable behavior for sleep_ideal_freq==0
+	if (suspended)
 		return;
 	suspended = 1;
 	for_each_online_cpu(i)
@@ -966,27 +736,21 @@ static int __init cpufreq_zen_init(void)
 {
 	unsigned int i;
 	struct zen_info_s *this_zen;
-	debug_mask = 0;
 	up_rate_us = DEFAULT_UP_RATE_US;
-	down_rate_us = DEFAULT_DOWN_RATE_US;
-	sleep_ideal_freq = DEFAULT_SLEEP_IDEAL_FREQ;
-	awake_ideal_freq_one = DEFAULT_AWAKE_IDEAL_FREQ_ONE;
-	awake_ideal_freq_two = DEFAULT_AWAKE_IDEAL_FREQ_TWO;
-	awake_ideal_freq_three = DEFAULT_AWAKE_IDEAL_FREQ_THREE;
+	ideal_step_one = DEFAULT_IDEAL_STEP_ONE;
+	ideal_step_two = DEFAULT_IDEAL_STEP_TWO;
+	ideal_step_three = DEFAULT_IDEAL_STEP_THREE;
+	ideal_step_four = DEFAULT_IDEAL_STEP_FOUR;
 	sample_rate_jiffies = DEFAULT_SAMPLE_RATE_JIFFIES;
-	ramp_up_step = DEFAULT_RAMP_UP_STEP;
-	ramp_down_step = DEFAULT_RAMP_DOWN_STEP;
-	max_cpu_load = DEFAULT_MAX_CPU_LOAD;
-	min_cpu_load = DEFAULT_MIN_CPU_LOAD;
-	boost_enabled = DEFAULT_BOOST_ENABLED;
-	boost_freq = DEFAULT_BOOST_FREQ;
-	boost_pulse = 0;
+	dynamics_thd = DEFAULT_DYNAMICS_THRESHOLD;
+	ramp_up_step = 36000*(100-dynamics_thd);
+	min_cpu_load = dynamics_thd-25;
 
 	spin_lock_init(&cpumask_lock);
 
 	suspended = 0;
 
-	/* Initalize per-cpu data: */
+	/* Initialize per-cpu data: */
 	for_each_possible_cpu(i) {
 		this_zen = &per_cpu(zen_info, i);
 		this_zen->enable = 0;
@@ -997,7 +761,7 @@ static int __init cpufreq_zen_init(void)
 		this_zen->freq_change_time = 0;
 		this_zen->freq_change_time_in_idle = 0;
 		this_zen->cur_cpu_load = 0;
-		// intialize timer:
+		// initialize timer:
 		init_timer_deferrable(&this_zen->timer);
 		this_zen->timer.function = cpufreq_zen_timer;
 		this_zen->timer.data = i;
