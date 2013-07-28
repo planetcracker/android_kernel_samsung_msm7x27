@@ -28,7 +28,6 @@
 #include <linux/cpu.h>
 #include <linux/completion.h>
 #include <linux/mutex.h>
-#include <linux/syscore_ops.h>
 
 #define dprintk(msg...) cpufreq_debug_printk(CPUFREQ_DEBUG_CORE, \
 						"cpufreq-core", msg)
@@ -1501,31 +1500,35 @@ out:
 }
 EXPORT_SYMBOL(cpufreq_get);
 
-static struct sysdev_driver cpufreq_sysdev_driver = {
-	.add		= cpufreq_add_dev,
-	.remove		= cpufreq_remove_dev,
-};
-
 
 /**
- * cpufreq_bp_suspend - Prepare the boot CPU for system suspend.
- *
- * This function is only executed for the boot processor.  The other CPUs
- * have been put offline by means of CPU hotplug.
+ *	cpufreq_suspend - let the low level driver prepare for suspend
  */
-static int cpufreq_bp_suspend(void)
+
+static int cpufreq_suspend(struct sys_device *sysdev, pm_message_t pmsg)
 {
 	int ret = 0;
 
-	int cpu = smp_processor_id();
+	int cpu = sysdev->id;
 	struct cpufreq_policy *cpu_policy;
 
 	dprintk("suspending cpu %u\n", cpu);
 
-	/* If there's no policy for the boot CPU, we have nothing to do. */
+	if (!cpu_online(cpu))
+		return 0;
+
+	/* we may be lax here as interrupts are off. Nonetheless
+	 * we need to grab the correct cpu policy, as to check
+	 * whether we really run on this CPU.
+	 */
+
 	cpu_policy = cpufreq_cpu_get(cpu);
 	if (!cpu_policy)
-		return 0;
+		return -EINVAL;
+
+	/* only handle each CPU group once */
+	if (unlikely(cpu_policy->cpu != cpu))
+		goto out;
 
 	if (cpufreq_driver->suspend) {
 		ret = cpufreq_driver->suspend(cpu_policy);
@@ -1534,12 +1537,13 @@ static int cpufreq_bp_suspend(void)
 					"step on CPU %u\n", cpu_policy->cpu);
 	}
 
+out:
 	cpufreq_cpu_put(cpu_policy);
 	return ret;
 }
 
 /**
- * cpufreq_bp_resume - Restore proper frequency handling of the boot CPU.
+ *	cpufreq_resume -  restore proper CPU frequency handling after resume
  *
  *	1.) resume CPUfreq hardware support (cpufreq_driver->resume())
  *	2.) schedule call cpufreq_update_policy() ASAP as interrupts are
@@ -1547,23 +1551,31 @@ static int cpufreq_bp_suspend(void)
  *	    what we believe it to be. This is a bit later than when it
  *	    should be, but nonethteless it's better than calling
  *	    cpufreq_driver->get() here which might re-enable interrupts...
- *
- * This function is only executed for the boot CPU.  The other CPUs have not
- * been turned on yet.
  */
-static void cpufreq_bp_resume(void)
+static int cpufreq_resume(struct sys_device *sysdev)
 {
 	int ret = 0;
 
-	int cpu = smp_processor_id();
+	int cpu = sysdev->id;
 	struct cpufreq_policy *cpu_policy;
 
 	dprintk("resuming cpu %u\n", cpu);
 
-	/* If there's no policy for the boot CPU, we have nothing to do. */
+	if (!cpu_online(cpu))
+		return 0;
+
+	/* we may be lax here as interrupts are off. Nonetheless
+	 * we need to grab the correct cpu policy, as to check
+	 * whether we really run on this CPU.
+	 */
+
 	cpu_policy = cpufreq_cpu_get(cpu);
 	if (!cpu_policy)
-		return;
+		return -EINVAL;
+
+	/* only handle each CPU group once */
+	if (unlikely(cpu_policy->cpu != cpu))
+		goto fail;
 
 	if (cpufreq_driver->resume) {
 		ret = cpufreq_driver->resume(cpu_policy);
@@ -1578,11 +1590,14 @@ static void cpufreq_bp_resume(void)
 
 fail:
 	cpufreq_cpu_put(cpu_policy);
+	return ret;
 }
 
-static struct syscore_ops cpufreq_syscore_ops = {
-	.suspend	= cpufreq_bp_suspend,
-	.resume		= cpufreq_bp_resume,
+static struct sysdev_driver cpufreq_sysdev_driver = {
+	.add		= cpufreq_add_dev,
+	.remove		= cpufreq_remove_dev,
+	.suspend	= cpufreq_suspend,
+	.resume		= cpufreq_resume,
 };
 
 
@@ -2165,7 +2180,6 @@ static int __init cpufreq_core_init(void)
 	cpufreq_global_kobject = kobject_create_and_add("cpufreq",
 						&cpu_sysdev_class.kset.kobj);
 	BUG_ON(!cpufreq_global_kobject);
-	register_syscore_ops(&cpufreq_syscore_ops);
 
 	return 0;
 }
