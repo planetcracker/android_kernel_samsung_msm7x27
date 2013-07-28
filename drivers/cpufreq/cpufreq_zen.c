@@ -34,8 +34,9 @@
 #include <linux/moduleparam.h>
 #include <asm/cputime.h>
 #include <linux/earlysuspend.h>
-#include <linux/slab.h>
 #include <linux/input.h>
+#include <linux/workqueue.h>
+#include <linux/slab.h>
 
 
 /******************** Tunable parameters: ********************/
@@ -67,7 +68,7 @@ static unsigned int ramp_up_step;
 /*
  * CPU freq will be increased if measured load > dynamics_thd;
  */
-#define DEFAULT_DYNAMICS_THRESHOLD 97
+#define DEFAULT_DYNAMICS_THRESHOLD 95
 static unsigned long dynamics_thd;
 static unsigned long old_load;
 
@@ -89,10 +90,22 @@ static unsigned long up_rate_us;
 #define DEFAULT_SAMPLE_RATE_JIFFIES 2
 static unsigned int sample_rate_jiffies;
 
+#define TOUCH_LOAD				75
+#define TOUCH_LOAD_THRESHOLD			10
+#define TOUCH_LOAD_DURATION			1100
+static unsigned int touch_load_duration;
+static unsigned int touch_load;
+static unsigned int touch_load_threshold;
+
+
 /*************** End of tunables ***************/
 
 static void (*pm_idle_old)(void);
 static atomic_t active_count = ATOMIC_INIT(0);
+
+struct timer_list touchpulse;
+static unsigned timer_delay;
+static bool touch;
 
 struct zen_info_s {
 	struct cpufreq_policy *cur_policy;
@@ -278,6 +291,11 @@ static void cpufreq_zen_timer(unsigned long cpu)
 	} else {
 		cpu_load = 100 * (unsigned int)(delta_time - delta_idle) / (unsigned int)delta_time;
 	}
+
+	/* Boost only CPUs with load > touch_load_thershold */
+	  if (touch && cpu_load < touch_load &&
+	      cpu_load > touch_load_threshold)
+		    cpu_load = touch_load;
 
 	this_zen->cur_cpu_load = cpu_load;
 	this_zen->old_freq = old_freq;
@@ -604,6 +622,72 @@ static struct attribute_group zen_attr_group = {
 	.name = "zen",
 };
 
+static void input_timeout(unsigned long timeout)
+{
+	touch = false;
+}
+
+static void zen_input_event(struct input_handle *handle, unsigned int type,
+		unsigned int code, int value)
+{
+	if (!touch) {
+		touch = true;
+		touchpulse.expires = jiffies + timer_delay;
+		add_timer(&touchpulse);
+	} else
+		mod_timer(&touchpulse, jiffies + timer_delay);
+}
+
+static int zen_input_connect(struct input_handler *handler,
+		struct input_dev *dev, const struct input_device_id *id)
+{
+	struct input_handle *handle;
+	int error;
+
+	handle = kzalloc(sizeof(struct input_handle), GFP_KERNEL);
+	if (!handle)
+		return -ENOMEM;
+
+	handle->dev = dev;
+	handle->handler = handler;
+	handle->name = "cpufreq";
+
+	error = input_register_handle(handle);
+	if (error)
+		goto err2;
+
+	error = input_open_device(handle);
+	if (error)
+		goto err1;
+
+	return 0;
+err1:
+	input_unregister_handle(handle);
+err2:
+	kfree(handle);
+	return error;
+}
+
+static void zen_input_disconnect(struct input_handle *handle)
+{
+	input_close_device(handle);
+	input_unregister_handle(handle);
+	kfree(handle);
+}
+
+static const struct input_device_id zen_ids[] = {
+	{ .driver_info = 1 },
+	{ },
+};
+
+static struct input_handler zen_input_handler = {
+	.event		= zen_input_event,
+	.connect	= zen_input_connect,
+	.disconnect	= zen_input_disconnect,
+	.name		= "cpufreq_ond",
+	.id_table	= zen_ids,
+};
+
 static int cpufreq_governor_zen(struct cpufreq_policy *new_policy,
 		unsigned int event)
 {
@@ -641,6 +725,9 @@ static int cpufreq_governor_zen(struct cpufreq_policy *new_policy,
 			pm_idle = cpufreq_idle;
 		}
 
+		if (!cpu)
+			rc = input_register_handler(&zen_input_handler);
+
 		if (this_zen->cur_policy->cur < new_policy->max && !timer_pending(&this_zen->timer))
 			reset_timer(cpu,this_zen);
 
@@ -669,6 +756,8 @@ static int cpufreq_governor_zen(struct cpufreq_policy *new_policy,
 
 	case CPUFREQ_GOV_STOP:
 		this_zen->enable = 0;
+		if (!cpu)
+			input_unregister_handler(&zen_input_handler);
 		smp_wmb();
 		del_timer(&this_zen->timer);
 		flush_work(&freq_scale_work);
@@ -755,6 +844,9 @@ static int __init cpufreq_zen_init(void)
 	old_load = DEFAULT_DYNAMICS_THRESHOLD;
 	ramp_up_step = 28000*(102-dynamics_thd);
 	min_cpu_load = dynamics_thd-25;
+	touch_load_duration = TOUCH_LOAD_DURATION;
+	touch_load = TOUCH_LOAD;
+	touch_load_threshold = TOUCH_LOAD_THRESHOLD;
 
 	spin_lock_init(&cpumask_lock);
 
@@ -784,6 +876,9 @@ static int __init cpufreq_zen_init(void)
 	if (!up_wq || !down_wq)
 		return -ENOMEM;
 
+	init_timer(&touchpulse);
+	touchpulse.function = input_timeout;
+
 	INIT_WORK(&freq_scale_work, cpufreq_zen_freq_change_time_work);
 
 	register_early_suspend(&zen_power_suspend);
@@ -799,6 +894,7 @@ module_init(cpufreq_zen_init);
 
 static void __exit cpufreq_zen_exit(void)
 {
+	del_timer_sync(&touchpulse);
 	cpufreq_unregister_governor(&cpufreq_gov_zen);
 	destroy_workqueue(up_wq);
 	destroy_workqueue(down_wq);
