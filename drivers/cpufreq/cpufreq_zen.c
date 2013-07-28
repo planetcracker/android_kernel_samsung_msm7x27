@@ -67,7 +67,7 @@ static unsigned int ramp_up_step;
 /*
  * CPU freq will be increased if measured load > dynamics_thd;
  */
-#define DEFAULT_DYNAMICS_THRESHOLD 99
+#define DEFAULT_DYNAMICS_THRESHOLD 97
 static unsigned long dynamics_thd;
 static unsigned long old_load;
 
@@ -168,7 +168,7 @@ inline static void zen_dynamics_awake(struct zen_info_s *this_zen, struct cpufre
 
 inline static void zen_dynamics_update(void) {
 	min_cpu_load = dynamics_thd - 25;
-	ramp_up_step = 37000*(102-dynamics_thd);
+	ramp_up_step = 28000*(102-dynamics_thd);
 }
 
 inline static unsigned int validate_freq(struct cpufreq_policy *policy, int freq) {
@@ -753,7 +753,7 @@ static int __init cpufreq_zen_init(void)
 	sample_rate_jiffies = DEFAULT_SAMPLE_RATE_JIFFIES;
 	dynamics_thd = DEFAULT_DYNAMICS_THRESHOLD;
 	old_load = DEFAULT_DYNAMICS_THRESHOLD;
-	ramp_up_step = 36000*(100-dynamics_thd);
+	ramp_up_step = 28000*(102-dynamics_thd);
 	min_cpu_load = dynamics_thd-25;
 
 	spin_lock_init(&cpumask_lock);
