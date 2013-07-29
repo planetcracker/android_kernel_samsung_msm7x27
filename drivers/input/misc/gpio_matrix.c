@@ -519,7 +519,7 @@ static int gpio_keypad_request_irqs(struct gpio_kp *kp)
 		}
 #if !defined(CONFIG_MACH_LUCAS) || !defined(CONFIG_MACH_CALLISTO)/*&& !defined(CONFIG_MACH_TASS) */
 //#ifndef CONFIG_MACH_LUCAS
-		err = set_irq_wake(irq, 1);
+		err = enable_irq_wake(irq);
 		if (err) {
 			pr_err("gpiomatrix: set_irq_wake failed for input %d, "
 				"irq %d\n", mi->input_gpios[i], irq);
@@ -533,7 +533,7 @@ static int gpio_keypad_request_irqs(struct gpio_kp *kp)
 	}
 /*
 #if defined(CONFIG_MACH_TASS) 
-	err = set_irq_wake(gpio_to_irq(GPIO_KBC0), 1);
+	err = enable_irq_wake(gpio_to_irq(GPIO_KBC0));
 	if (err) 
 	{
 		pr_err("gpiomatrix: set_irq_wake failed for input %d, "	"irq %d\n", GPIO_KBC0, irq);
@@ -541,15 +541,15 @@ static int gpio_keypad_request_irqs(struct gpio_kp *kp)
 #endif
 */
 #if defined (CONFIG_MACH_LUCAS)
-	err = set_irq_wake(gpio_to_irq(GPIO_KBR6), 1);
+	err = enable_irq_wake(gpio_to_irq(GPIO_KBR6));
 	if (err) 
 	{
 		pr_err("gpiomatrix: set_irq_wake failed for input %d, "	"irq %d\n", mi->input_gpios[i], irq);
 	}
 #elif defined (CONFIG_MACH_CALLISTO)
-	err = set_irq_wake(gpio_to_irq(GPIO_KBR5), 1);	// hsil
-	err = set_irq_wake(gpio_to_irq(GPIO_KBR6), 1);	// hsil
-	err = set_irq_wake(gpio_to_irq(GPIO_VOL_UP), 1);	// hsil
+	err = enable_irq_wake(gpio_to_irq(GPIO_KBR5));	// hsil
+	err = enable_irq_wake(gpio_to_irq(GPIO_KBR6));	// hsil
+	err = enable_irq_wake(gpio_to_irq(GPIO_VOL_UP));	// hsil
 #endif
 	
 //#ifndef CONFIG_MACH_LUCAS
@@ -563,7 +563,7 @@ static int gpio_keypad_request_irqs(struct gpio_kp *kp)
 		goto err_request_irq_failed;
 	}
 	
-	err = set_irq_wake(gpio_to_irq(GPIO_SLIDE), 1);
+	err = enable_irq_wake(gpio_to_irq(GPIO_SLIDE));
 	if (err) 
 		printk("[SLIDE] register wakeup source failed\n");
 #else
@@ -579,7 +579,7 @@ static int gpio_keypad_request_irqs(struct gpio_kp *kp)
 		goto err_request_irq_failed;
 	}
 	
-	err = set_irq_wake(irq, 1);
+	err = enable_irq_wake(irq);
 	if (err) 
 		printk("[PWRKEY] register wakeup source failed\n");
 
