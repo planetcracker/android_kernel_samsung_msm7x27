@@ -34,7 +34,7 @@ struct input_event {
  * Protocol version.
  */
 
-#define EV_VERSION		0x010001
+#define EV_VERSION		0x010000
 
 /*
  * IOCTLs (0x00 - 0x7f)
@@ -663,7 +663,7 @@ struct input_keymap_entry {
 #define KEY_NUMERIC_9		0x209
 #define KEY_NUMERIC_STAR	0x20a
 #define KEY_NUMERIC_POUND	0x20b
-
+#define KEY_CAMERA_SNAPSHOT	0x2fe
 #define KEY_CAMERA_FOCUS	0x210
 #define KEY_WPS_BUTTON		0x211	/* WiFi Protected Setup key */
 
@@ -792,7 +792,7 @@ struct input_keymap_entry {
 #ifdef __KERNEL__
 /* Implementation details, userspace should not care about these */
 #define ABS_MT_FIRST		ABS_MT_TOUCH_MAJOR
-#define ABS_MT_LAST		ABS_MT_DISTANCE
+#define ABS_MT_LAST		ABS_MT_PRESSURE
 #endif
 
 #define ABS_MAX			0x3f
@@ -905,6 +905,12 @@ struct input_keymap_entry {
 #define MT_TOOL_FINGER		0
 #define MT_TOOL_PEN		1
 #define MT_TOOL_MAX		1
+
+#ifdef CONFIG_KERNEL_DEBUG_SEC
+#define KERNEL_SEC_FORCED_UPLOAD_1ST_KEY  KEY_VOLUMEUP		/*VOLUME UP KEY*/
+#define KERNEL_SEC_FORCED_UPLOAD_2ND_KEY  KEY_HOME			/*HOME KEY*/
+#endif // CONFIG_KERNEL_DEBUG_SEC
+
 
 /*
  * Values describing the status of a force-feedback effect
