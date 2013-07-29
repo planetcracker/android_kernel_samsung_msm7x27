@@ -47,6 +47,25 @@ struct input_id {
 	__u16 version;
 };
 
+/**
+ * struct input_absinfo - used by EVIOCGABS/EVIOCSABS ioctls
+ * @value: latest reported value for the axis.
+ * @minimum: specifies minimum value for the axis.
+ * @maximum: specifies maximum value for the axis.
+ * @fuzz: specifies fuzz value that is used to filter noise from
+ *	the event stream.
+ * @flat: values that are within this value will be discarded by
+ *	joydev interface and reported as 0 instead.
+ * @resolution: specifies resolution for the values reported for
+ *	the axis.
+ *
+ * Note that input core does not clamp reported values to the
+ * [minimum, maximum] limits, such task is left to userspace.
+ *
+ * Resolution for main axes (ABS_X, ABS_Y, ABS_Z) is reported in
+ * units per millimeter (units/mm), resolution for rotational axes
+ * (ABS_RX, ABS_RY, ABS_RZ) is reported in units per radian.
+ */
 struct input_absinfo {
 	__s32 value;
 	__s32 minimum;
@@ -422,6 +441,8 @@ struct input_keymap_entry {
 #define KEY_WIMAX		246
 #define KEY_RFKILL		247	/* Key that controls all radios */
 
+#define KEY_MICMUTE		248	/* Mute / unmute the microphone */
+
 /* Code 255 is reserved for special needs of AT keyboard driver */
 
 #define BTN_MISC		0x100
@@ -538,8 +559,8 @@ struct input_keymap_entry {
 #define KEY_DVD			0x185	/* Media Select DVD */
 #define KEY_AUX			0x186
 #define KEY_MP3			0x187
-#define KEY_AUDIO		0x188
-#define KEY_VIDEO		0x189
+#define KEY_AUDIO		0x188	/* AL Audio Browser */
+#define KEY_VIDEO		0x189	/* AL Movie Browser */
 #define KEY_DIRECTORY		0x18a
 #define KEY_LIST		0x18b
 #define KEY_MEMO		0x18c	/* Media Select Messages */
@@ -588,6 +609,9 @@ struct input_keymap_entry {
 #define KEY_FRAMEFORWARD	0x1b5
 #define KEY_CONTEXT_MENU	0x1b6	/* GenDesc - system context menu */
 #define KEY_MEDIA_REPEAT	0x1b7	/* Consumer - transport control */
+#define KEY_10CHANNELSUP	0x1b8	/* 10 channels up (10+) */
+#define KEY_10CHANNELSDOWN	0x1b9	/* 10 channels down (10-) */
+#define KEY_IMAGES		0x1ba	/* AL Image Browser */
 
 #define KEY_DEL_EOL		0x1c0
 #define KEY_DEL_EOS		0x1c1
@@ -639,13 +663,20 @@ struct input_keymap_entry {
 #define KEY_NUMERIC_9		0x209
 #define KEY_NUMERIC_STAR	0x20a
 #define KEY_NUMERIC_POUND	0x20b
-#define KEY_CAMERA_SNAPSHOT	0x2fe
+
 #define KEY_CAMERA_FOCUS	0x210
 #define KEY_WPS_BUTTON		0x211	/* WiFi Protected Setup key */
 
 #define KEY_TOUCHPAD_TOGGLE	0x212	/* Request switch touchpad on or off */
 #define KEY_TOUCHPAD_ON		0x213
 #define KEY_TOUCHPAD_OFF	0x214
+
+#define KEY_CAMERA_ZOOMIN	0x215
+#define KEY_CAMERA_ZOOMOUT	0x216
+#define KEY_CAMERA_UP		0x217
+#define KEY_CAMERA_DOWN		0x218
+#define KEY_CAMERA_LEFT		0x219
+#define KEY_CAMERA_RIGHT	0x21a
 
 #define BTN_TRIGGER_HAPPY		0x2c0
 #define BTN_TRIGGER_HAPPY1		0x2c0
@@ -874,13 +905,6 @@ struct input_keymap_entry {
 #define MT_TOOL_FINGER		0
 #define MT_TOOL_PEN		1
 #define MT_TOOL_MAX		1
-
-
-#ifdef CONFIG_KERNEL_DEBUG_SEC
-#define KERNEL_SEC_FORCED_UPLOAD_1ST_KEY  KEY_VOLUMEUP		/*VOLUME UP KEY*/
-#define KERNEL_SEC_FORCED_UPLOAD_2ND_KEY  KEY_HOME			/*HOME KEY*/
-#endif // CONFIG_KERNEL_DEBUG_SEC
-
 
 /*
  * Values describing the status of a force-feedback effect
@@ -1167,7 +1191,7 @@ struct input_value {
  * @mtsize: number of MT slots the device uses
  * @slot: MT slot currently being transmitted
  * @trkid: stores MT tracking ID for the current contact
- * @absinfo: array of &struct absinfo elements holding information
+ * @absinfo: array of &struct input_absinfo elements holding information
  *	about absolute axes (current value, min, max, flat, fuzz,
  *	resolution)
  * @key: reflects current state of device's keys/buttons
@@ -1262,7 +1286,7 @@ struct input_dev {
 	int (*flush)(struct input_dev *dev, struct file *file);
 	int (*event)(struct input_dev *dev, unsigned int type, unsigned int code, int value);
 
-	struct input_handle __rcu *grab;
+	struct input_handle *grab;
 
 	spinlock_t event_lock;
 	struct mutex mutex;
