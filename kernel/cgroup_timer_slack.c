@@ -47,7 +47,7 @@ static struct cgroup_subsys_state *tslack_create(struct cgroup_subsys *subsys,
 		parent = cgroup_to_tslack(cgroup->parent);
 		tslack_cgroup->min_slack_ns = parent->min_slack_ns;
 	} else
-		tslack_cgroup->min_slack_ns = 0UL;
+		tslack_cgroup->min_slack_ns = 10000000UL;
 
 	return &tslack_cgroup->css;
 }

@@ -52,8 +52,9 @@ struct lockdep_map rcu_lock_map =
 	STATIC_LOCKDEP_MAP_INIT("rcu_read_lock", &rcu_lock_key);
 EXPORT_SYMBOL_GPL(rcu_lock_map);
 #endif
-
+#ifndef CONFIG_JRCU
 int rcu_scheduler_active __read_mostly;
+#endif
 
 /*
  * Awaken the corresponding synchronize_rcu() instance now that a
@@ -66,7 +67,7 @@ void wakeme_after_rcu(struct rcu_head  *head)
 	rcu = container_of(head, struct rcu_synchronize, head);
 	complete(&rcu->completion);
 }
-
+#ifndef CONFIG_JRCU
 #ifndef CONFIG_TINY_RCU
 
 #ifdef CONFIG_TREE_PREEMPT_RCU
@@ -120,6 +121,7 @@ EXPORT_SYMBOL_GPL(synchronize_rcu);
  * In "classic RCU", these two guarantees happen to be one and
  * the same, but can differ in realtime RCU implementations.
  */
+
 void synchronize_sched(void)
 {
 	struct rcu_synchronize rcu;
@@ -134,6 +136,7 @@ void synchronize_sched(void)
 	wait_for_completion(&rcu.completion);
 }
 EXPORT_SYMBOL_GPL(synchronize_sched);
+
 
 /**
  * synchronize_rcu_bh - wait until an rcu_bh grace period has elapsed.
@@ -167,3 +170,4 @@ void rcu_scheduler_starting(void)
 	WARN_ON(nr_context_switches() > 0);
 	rcu_scheduler_active = 1;
 }
+#endif /* #ifndef CONFIG_JRCU */

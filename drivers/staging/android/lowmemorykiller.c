@@ -55,10 +55,10 @@ static uint32_t lowmem_debug_level = 1;
 static short lowmem_adj[6] = {
 	0,
 	4,
-	8,
-	10,
-	13,
-	15,
+	7,
+	9,
+	12,
+	16,
 };
 static int lowmem_adj_size = 6;
 static int lowmem_minfree[6] = {
