@@ -2143,6 +2143,7 @@ out:
 static const struct file_operations input_fops = {
 	.owner = THIS_MODULE,
 	.open = input_open_file,
+	.llseek = noop_llseek,
 };
 
 static int __init input_init(void)
