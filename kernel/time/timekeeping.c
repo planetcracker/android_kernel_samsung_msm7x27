@@ -388,40 +388,6 @@ int do_settimeofday(const struct timespec *tv)
 EXPORT_SYMBOL(do_settimeofday);
 
 
-/**
- * timekeeping_inject_offset - Adds or subtracts from the current time.
- * @tv:		pointer to the timespec variable containing the offset
- *
- * Adds or subtracts an offset value from the current time.
- */
-int timekeeping_inject_offset(struct timespec *ts)
-{
-	unsigned long flags;
-
-	if ((unsigned long)ts->tv_nsec >= NSEC_PER_SEC)
-		return -EINVAL;
-
-	write_seqlock_irqsave(&xtime_lock, flags);
-
-	timekeeping_forward_now();
-
-	xtime = timespec_add(xtime, *ts);
-	wall_to_monotonic = timespec_sub(wall_to_monotonic, *ts);
-
-	timekeeper.ntp_error = 0;
-	ntp_clear();
-
-	update_vsyscall(&xtime, &wall_to_monotonic, timekeeper.clock,
-				timekeeper.mult);
-
-	write_sequnlock_irqrestore(&xtime_lock, flags);
-
-	/* signal hrtimers about time change */
-	clock_was_set();
-
-	return 0;
-}
-EXPORT_SYMBOL(timekeeping_inject_offset);
 
 /**
  * change_clocksource - Swaps clocksources if a new one is available
@@ -1080,7 +1046,7 @@ void do_timer(unsigned long ticks)
 {
 	jiffies_64 += ticks;
 	update_wall_time();
-	calc_global_load(ticks);
+	calc_global_load();
 }
 
 /**
@@ -1101,6 +1067,21 @@ void get_xtime_and_monotonic_and_sleep_offset(struct timespec *xtim,
 		*wtom = wall_to_monotonic;
 		*sleep = total_sleep_time;
 	} while (read_seqretry(&xtime_lock, seq));
+}
+
+/**
+ * ktime_get_monotonic_offset() - get wall_to_monotonic in ktime_t format
+ */
+ktime_t ktime_get_monotonic_offset(void)
+{
+	unsigned long seq;
+	struct timespec wtom;
+
+	do {
+		seq = read_seqbegin(&xtime_lock);
+		wtom = wall_to_monotonic;
+	} while (read_seqretry(&xtime_lock, seq));
+	return timespec_to_ktime(wtom);
 }
 
 /**
