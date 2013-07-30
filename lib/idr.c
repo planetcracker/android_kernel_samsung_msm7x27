@@ -35,6 +35,8 @@
 #include <linux/string.h>
 #include <linux/idr.h>
 
+static DEFINE_SPINLOCK(simple_ida_lock);
+
 static struct kmem_cache *idr_layer_cache;
 
 static struct idr_layer *get_from_free_list(struct idr *idp)
@@ -928,6 +930,63 @@ EXPORT_SYMBOL(ida_destroy);
  * This function is use to set up the handle (@ida) that you will pass
  * to the rest of the functions.
  */
+
+int ida_simple_get(struct ida *ida, unsigned int start, unsigned int end,
+                    gfp_t gfp_mask)
+ {
+         int ret, id;
+         unsigned int max;
+         unsigned long flags;
+ 
+         BUG_ON((int)start < 0);
+         BUG_ON((int)end < 0);
+ 
+         if (end == 0)
+                 max = 0x80000000;
+         else {
+                 BUG_ON(end < start);
+                 max = end - 1;
+         }
+ 
+ again:
+         if (!ida_pre_get(ida, gfp_mask))
+                 return -ENOMEM;
+ 
+         spin_lock_irqsave(&simple_ida_lock, flags);
+         ret = ida_get_new_above(ida, start, &id);
+         if (!ret) {
+                 if (id > max) {
+                         ida_remove(ida, id);
+                         ret = -ENOSPC;
+                 } else {
+                         ret = id;
+                 }
+         }
+         spin_unlock_irqrestore(&simple_ida_lock, flags);
+ 
+         if (unlikely(ret == -EAGAIN))
+                 goto again;
+ 
+         return ret;
+ }
+ EXPORT_SYMBOL(ida_simple_get);
+ 
+ /**
+  * ida_simple_remove - remove an allocated id.
+  * @ida: the (initialized) ida.
+  * @id: the id returned by ida_simple_get.
+  */
+ void ida_simple_remove(struct ida *ida, unsigned int id)
+ {
+         unsigned long flags;
+ 
+         BUG_ON((int)id < 0);
+        spin_lock_irqsave(&simple_ida_lock, flags);
+        ida_remove(ida, id);
+        spin_unlock_irqrestore(&simple_ida_lock, flags);
+}
+EXPORT_SYMBOL(ida_simple_remove);
+
 void ida_init(struct ida *ida)
 {
 	memset(ida, 0, sizeof(struct ida));
