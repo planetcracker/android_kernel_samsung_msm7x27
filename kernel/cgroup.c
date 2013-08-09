@@ -1698,6 +1698,24 @@ int cgroup_path(const struct cgroup *cgrp, char *buf, int buflen)
 }
 EXPORT_SYMBOL_GPL(cgroup_path);
 
+static int cgroup_allow_attach(struct cgroup *cgrp, struct task_struct *tsk)
+{
+  struct cgroup_subsys *ss;
+  int ret;
+
+  for_each_subsys(cgrp->root, ss) {
+    if (ss->allow_attach) {
+      ret = ss->allow_attach(cgrp, tsk);
+      if (ret)
+        return ret;
+    } else {
+      return -EACCES;
+    }
+  }
+
+  return 0;
+}
+
 /**
  * cgroup_attach_task - attach task 'tsk' to cgroup 'cgrp'
  * @cgrp: the cgroup the task is attaching to
@@ -1740,7 +1758,16 @@ int cgroup_attach_task(struct cgroup *cgrp, struct task_struct *tsk)
 			tcred = __task_cred(tsk);
 			if (cred->euid != tcred->uid &&
 			    cred->euid != tcred->suid) {
-				return -EACCES;
+				  /*
+			       * if the default permission check fails, give each
+			       * cgroup a chance to extend the permission check
+			       */
+			      retval = cgroup_allow_attach(cgrp, tsk);
+			      if (retval) {
+				rcu_read_unlock();
+				cgroup_unlock();
+				return retval;
+			      }
 			}
 		}
 	}
