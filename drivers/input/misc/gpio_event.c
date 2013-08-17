@@ -187,9 +187,12 @@ static int gpio_event_probe(struct platform_device *pdev)
 					event_info->name : event_info->names[i];
 		input_dev->event = gpio_input_event;
 		ip->input_devs->dev[i] = input_dev;
-#ifdef CONFIG_TOUCHSCREEN_SWEEP2WAKE
-		sweep2wake_setdev(input_dev);
-#endif
+		/* Sweep2wake */
+    if (!strcmp(input_dev->name, "sec_key")) {
+      sweep2wake_setdev(input_dev);
+      printk(KERN_INFO "[sweep2wake]: set device %s\n", input_dev->name);
+    }
+    /* Sweep2wake */
 	}
 	ip->input_devs->count = dev_count;
 	ip->info = event_info;

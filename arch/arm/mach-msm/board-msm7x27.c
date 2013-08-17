@@ -901,7 +901,7 @@ static void keypad_gpio_control(struct platform_device *pdev) {
 			printk(KERN_ERR "%s: gpio_tlmm_config(%#x)=%d\n", __func__, minfo->output_gpios[i], ret);
 		}
 	}
-#if !defined(CONFIG_MATCH_EUROPA) && !defined(CONFIG_MACH_CALLISTO)
+#if !defined(CONFIG_MACH_EUROPA) && !defined(CONFIG_MACH_CALLISTO)
 	config = GPIO_CFG(83, 0, GPIO_CFG_INPUT, GPIO_CFG_PULL_UP, GPIO_CFG_2MA);
 	ret = gpio_tlmm_config(config, GPIO_CFG_ENABLE);
 	if (ret) {

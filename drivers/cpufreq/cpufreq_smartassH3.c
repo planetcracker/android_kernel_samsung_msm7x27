@@ -126,7 +126,6 @@ static unsigned int boost_enabled;
 #define MAX_BOOST_PULSE 2500000
 static unsigned long boost_pulse;
 static u64 boost_pulse_time;
-extern unsigned int touch_state_val;
 
 /*************** End of tunables ***************/
 
@@ -423,7 +422,7 @@ static void cpufreq_smartass_freq_change_time_work(struct work_struct *work)
 			if (now <= boost_pulse_time + boost_pulse) {
 				// boost logic:
 				if (boost_enabled > 0 &&
-					old_freq < this_smartass->boost_speed && touch_state_val) {
+					old_freq < this_smartass->boost_speed) {
 					// Jump to ideal frequency
 					new_freq = this_smartass->boost_speed;
 					relation = CPUFREQ_RELATION_H;
