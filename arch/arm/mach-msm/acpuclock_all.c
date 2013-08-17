@@ -217,11 +217,11 @@ static struct clkctl_acpu_speed pll0_960_pll1_245_pll2_1200[] = {
 	//{ 1, 748800, ACPU_PLL_0, 4, 0, 187200, 3, 5, 122880 },
 	{ 1, 770800, ACPU_PLL_0, 4, 0, 257000, 3, 7, 122880 },
 #ifndef CONFIG_MACH_EUROPA
-	{ 1, 787200, ACPU_PLL_0, 4, 0, 196800, 3, 7, 122880 },
-	{ 1, 806400, ACPU_PLL_0, 4, 0, 201600, 3, 7, 122880 },
+	{ 1, 789600, ACPU_PLL_0, 4, 0, 196800, 3, 7, 122880 },
+	{ 1, 808400, ACPU_PLL_0, 4, 0, 201600, 3, 7, 122880 },
 #endif
-	{ 1, 825600, ACPU_PLL_0, 4, 0, 206400, 3, 7, 122880 },
-	{ 1, 844800, ACPU_PLL_0, 4, 0, 211200, 3, 7, 122880 },
+	{ 1, 827200, ACPU_PLL_0, 4, 0, 206400, 3, 7, 122880 },
+	{ 1, 846000, ACPU_PLL_0, 4, 0, 211200, 3, 7, 122880 },
 #else
 	{ 0, 19200, ACPU_PLL_TCXO, 0, 0, 19200, 0, 0, 30720 },
 	{ 1, 66000, ACPU_PLL_1, 1, 1,  33000, 1, 0,  61440 },
@@ -233,14 +233,14 @@ static struct clkctl_acpu_speed pll0_960_pll1_245_pll2_1200[] = {
 	{ 0, 400000, ACPU_PLL_2, 2, 2, 133333, 2, 4, 122880 },
 	{ 1, 480000, ACPU_PLL_0, 4, 1, 160000, 2, 3, 122880 },
 	{ 1, 604800, ACPU_PLL_2, 2, 1, 201600, 2, 4, 122880 },
-	{ 1, 652800, ACPU_PLL_0, 4, 0, 217600, 2, 6, 122880 },
-	{ 1, 729600, ACPU_PLL_0, 4, 0, 182400, 3, 6, 122880 },
-	{ 1, 748800, ACPU_PLL_0, 4, 0, 187200, 3, 7, 122880 },
-	{ 1, 768000, ACPU_PLL_0, 4, 0, 192000, 3, 7, 122880 },
-	{ 1, 787200, ACPU_PLL_0, 4, 0, 196800, 3, 7, 122880 },
-	{ 1, 806400, ACPU_PLL_0, 4, 0, 201600, 3, 7, 122880 },
-	{ 1, 825600, ACPU_PLL_0, 4, 0, 206400, 3, 7, 122880 },
-	{ 1, 844800, ACPU_PLL_0, 4, 0, 211200, 3, 7, 122880 },
+	{ 1, 658000, ACPU_PLL_0, 4, 0, 217600, 2, 6, 122880 },
+	{ 1, 733200, ACPU_PLL_0, 4, 0, 182400, 3, 6, 122880 },
+	{ 1, 752000, ACPU_PLL_0, 4, 0, 187200, 3, 7, 122880 },
+	{ 1, 770800, ACPU_PLL_0, 4, 0, 192000, 3, 7, 122880 },
+	{ 1, 789600, ACPU_PLL_0, 4, 0, 196800, 3, 7, 122880 },
+	{ 1, 808400, ACPU_PLL_0, 4, 0, 201600, 3, 7, 122880 },
+	{ 1, 827200, ACPU_PLL_0, 4, 0, 206400, 3, 7, 122880 },
+	{ 1, 846000, ACPU_PLL_0, 4, 0, 211200, 3, 7, 122880 },
 #endif
 	{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, {0, 0, 0}, {0, 0, 0} }
 };
@@ -294,9 +294,10 @@ static struct clkctl_acpu_speed pll0_960_pll1_196_pll2_800[] = {
 #define PLL_800_MHZ	41
 #define PLL_960_MHZ	50
 #define PLL_1056_MHZ	55
-#define PLL_1200_MHZ	62
 #ifdef CONFIG_MACH_TASS
-#define PLL_1210_MHZ	64
+#define PLL_1200_MHZ	63
+#else
+#define PLL_1200_MHZ	62
 #endif
 
 #define PLL_CONFIG(m0, m1, m2) { \
@@ -472,13 +473,6 @@ static void acpuclk_set_div(const struct clkctl_acpu_speed *hunt_s)
 					writel(hunt_s->a11clk_khz/18800, PLLn_L_VAL(0));
 					udelay(50);
 			}
-#ifdef CONFIG_MACH_TASS
-	if(hunt_s->a11clk_khz==604800) {
-					writel(PLL_1210_MHZ, PLLn_L_VAL(2));
-					udelay(50);
-			}
-#endif
-
 
 	/*
 	 * If the new clock divider is higher than the previous, then
@@ -509,12 +503,7 @@ static void acpuclk_set_div(const struct clkctl_acpu_speed *hunt_s)
 		writel(PLL_960_MHZ, PLLn_L_VAL(0));
 		udelay(50);
 	}
-#ifdef CONFIG_MACH_TASS
-	if(hunt_s->a11clk_khz<604800) {
-					writel(PLL_1200_MHZ, PLLn_L_VAL(2));
-					udelay(50);
-			}
-#endif
+
 	/*
 	 * If the new clock divider is lower than the previous, then
 	 * program the divider after switching the clock
@@ -795,6 +784,10 @@ static void __init acpu_freq_tbl_fixup(void)
 		udelay(50);
 	} while (pll1_l == 0);
 	do {
+#ifdef CONFIG_MACH_TASS
+		writel(PLL_1200_MHZ, PLLn_L_VAL(2));
+		udelay(50);
+#endif
 		pll2_l = readl(PLLn_L_VAL(2)) & 0x3f;
 		cpu_relax();
 		udelay(50);
