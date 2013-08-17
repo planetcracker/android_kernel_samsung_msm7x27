@@ -53,7 +53,9 @@ struct synaptics_i2c_rmi_platform_data {
 	int fuzz_w;
 	int8_t sensitivity_adjust;
 };
+#ifdef CONFIG_TOUCHSCREEN_SWEEP
 /* Sweep2Wake */
-	extern void sweep2wake_setdev(struct input_dev * input_device);
+	extern void sweep_setdev(struct input_dev * input_device);
+#endif
 
 #endif /* _LINUX_SYNAPTICS_I2C_RMI_H */

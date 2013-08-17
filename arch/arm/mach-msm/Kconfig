@@ -194,6 +194,10 @@ config FORCE_FAST_CHARGE
     A simple sysfs interface to force adapters that
     are detected as USB to charge as AC.
 
+config TOUCHSCREEN_SWEEP
+        tristate "Sweep Functions for touchscreens"
+        default y
+
 config MACH_TASSDT
 	depends on ARCH_MSM7X27
 	depends on !MSM_STACKED_MEMORY

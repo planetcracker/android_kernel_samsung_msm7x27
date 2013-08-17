@@ -28,6 +28,9 @@
 #include <linux/device.h>
 #include <linux/i2c/europa_tsp_gpio.h>
 #include <linux/mutex.h>
+#ifdef CONFIG_TOUCHSCREEN_SWEEP
+#include <linux/sweep.h>
+#endif
 
 /* firmware - update */
 #include <linux/firmware.h>
@@ -104,26 +107,26 @@ static void synaptics_ts_late_resume(struct early_suspend *h);
 static DEFINE_MUTEX(tsp_sleep_lock);
 #endif
 
-
+#ifdef CONFIG_TOUCHSCREEN_SWEEP
 /* Sweep to wake */
 int prevx = 0;
 int trigger = 0;
 bool scr_suspended = false;
-static struct input_dev * sweep2wake_pwrdev;
+static struct input_dev * sweep_pwrdev;
 static DEFINE_MUTEX(pwrlock);
 
-extern void sweep2wake_setdev(struct input_dev * input_device) {
-	sweep2wake_pwrdev = input_device;
+extern void sweep_setdev(struct input_dev * input_device) {
+	sweep_pwrdev = input_device;
 	return;
 }
-EXPORT_SYMBOL(sweep2wake_setdev);
+EXPORT_SYMBOL(sweep_setdev);
 
 static void sweep2wake_presspwr(struct work_struct * sweep2wake_presspwr_work) {
-	input_event(sweep2wake_pwrdev, EV_KEY, KEY_END, 1);
-	input_event(sweep2wake_pwrdev, EV_SYN, 0, 0);
+	input_event(sweep_pwrdev, EV_KEY, KEY_END, 1);
+	input_event(sweep_pwrdev, EV_SYN, 0, 0);
 	msleep(100);
-	input_event(sweep2wake_pwrdev, EV_KEY, KEY_END, 0);
-	input_event(sweep2wake_pwrdev, EV_SYN, 0, 0);
+	input_event(sweep_pwrdev, EV_KEY, KEY_END, 0);
+	input_event(sweep_pwrdev, EV_SYN, 0, 0);
 	msleep(100);
 	mutex_unlock(&pwrlock);
 	return;
@@ -137,6 +140,7 @@ void sweep2wake_pwrtrigger(void) {
 	return;
 }
 /* Sweep2wake */
+#endif
 
 int tsp_reset( void )
 {
@@ -342,34 +346,37 @@ static void synaptics_ts_work_func(struct work_struct *work)
 		input_report_abs(ts->input_dev, ABS_MT_TOUCH_MAJOR, fingerInfo[i].status);
 		input_report_abs(ts->input_dev, ABS_MT_WIDTH_MAJOR, fingerInfo[i].z);
 		input_mt_sync(ts->input_dev);
-
+#ifdef CONFIG_TOUCHSCREEN_SWEEP
 		/* Sweep2wake */
-		if (scr_suspended == true) {
-			if (fingerInfo[i].status == 1) {
-				if (fingerInfo[i].y > 120 && fingerInfo[i].y < 200) {
-					if (fingerInfo[i].x < 40)
-						trigger = 1;
-					if (trigger == 1) {
-						if (fingerInfo[i].x > prevx) {
-							prevx = fingerInfo[i].x;
-							if (fingerInfo[i].x > 200) {
-								sweep2wake_pwrtrigger();
+		if (sweeptowake == 1) {
+			if (scr_suspended == true) {
+				if (fingerInfo[i].status == 1) {
+					if (fingerInfo[i].y > 120 && fingerInfo[i].y < 200) {
+						if (fingerInfo[i].x < 40)
+							trigger = 1;
+						if (trigger == 1) {
+							if (fingerInfo[i].x > prevx) {
+								prevx = fingerInfo[i].x;
+								if (fingerInfo[i].x > 200) {
+									sweep2wake_pwrtrigger();
+									trigger = 0;
+									prevx = 0;
+									scr_suspended = false;
+								}
+							} else {
 								trigger = 0;
 								prevx = 0;
-								scr_suspended = false;
 							}
-						} else {
-							trigger = 0;
-							prevx = 0;
 						}
 					}
+				} else {
+					trigger = 0;
+					prevx = 0;
 				}
-			} else {
-				trigger = 0;
-				prevx = 0;
 			}
 		}
 		/* end Sweep2wake */
+#endif
 	}
 
 	input_sync(ts->input_dev);
@@ -619,7 +626,7 @@ static int synaptics_ts_remove(struct i2c_client *client)
 	return 0;
 }
 
-#if 0
+#ifndef CONFIG_TOUCHSCREEN_SWEEP
 static int synaptics_ts_suspend(struct i2c_client *client, pm_message_t mesg)
 {
 	int ret;
@@ -711,9 +718,83 @@ static void ts_resume_work_func(struct work_struct *ignored)
 	mutex_unlock(&tsp_sleep_lock);
 
 }
+#ifndef CONFIG_TOUCHSCREEN_SWEEP
+static int synaptics_ts_resume(struct i2c_client *client)
+{
+	int ret;
+	struct vreg *vreg_touch;
 
+	printk("[TSP] %s+\n", __func__ );
+	if( touch_present )
+	{
+	mutex_lock(&tsp_sleep_lock);
+
+	gpio_set_value( TSP_SCL , 1 ); 
+	gpio_set_value( TSP_SDA , 1 ); 
+	gpio_set_value( TSP_INT , 1 ); 
+
+	vreg_touch = vreg_get(NULL, "ldo6");
+
+	ret = vreg_enable(vreg_touch);
+
+	if (ret)
+	{
+		printk(KERN_ERR "%s: vreg enable failed (%d)\n",
+				__func__, ret);
+		return -EIO;
+	}
+
+	schedule_delayed_work(&ts_resume_work, 20 );//200 msec
+	msleep(100);
+#if 0
+	msleep(500);
+
+
+	retry_count = 0;
+
+	while (ts->use_irq)
+	{
+		msleep(20);
+
+		ret = tsp_i2c_read( i2c_addr, buf, sizeof(buf));
+
+		if (ret <= 0) 
+		{
+			retry_count++;
+		}
+		else if	( buf[0] == 0 )
+		{
+			retry_count++;
+		}
+		else
+		{
+			printk("[TSP] %s:%d, ver SW=%x\n", __func__,__LINE__, buf[0] );
+			break;
+		}
+
+		if(retry_count > 5){
+			printk("[TSP] %s: %d, retry_count=%d\n", __func__, __LINE__, retry_count);
+			tsp_reset();
+			break;
+		}
+
+		msleep(20);
+	}
+
+	enable_irq(client->irq);
+	prev_wdog_val = -1;
+	schedule_delayed_work(&ts->work_check_ic, CHECK_TIME );
+#endif
+	}
+	else
+		printk("[TSP] TSP isn't present.\n");
+	printk("[TSP] %s-\n", __func__ );
+	return 0;
+}
+#endif
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
+#ifdef CONFIG_TOUCHSCREEN_SWEEP
 static void synaptics_ts_early_suspend(struct early_suspend *h)
 {
 	scr_suspended = true;
@@ -727,6 +808,21 @@ static void synaptics_ts_late_resume(struct early_suspend *h)
 		prevx = 0;
 	}
 }
+#else
+static void synaptics_ts_early_suspend(struct early_suspend *h)
+{
+	struct synaptics_ts_data *ts;
+	ts = container_of(h, struct synaptics_ts_data, early_suspend);
+	synaptics_ts_suspend(ts->client, PMSG_SUSPEND);
+}
+
+static void synaptics_ts_late_resume(struct early_suspend *h)
+{
+	struct synaptics_ts_data *ts;
+	ts = container_of(h, struct synaptics_ts_data, early_suspend);
+	synaptics_ts_resume(ts->client);
+}
+#endif
 #endif
 
 static const struct i2c_device_id synaptics_ts_id[] = {
