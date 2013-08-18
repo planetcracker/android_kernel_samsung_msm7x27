@@ -86,7 +86,7 @@ int mmi_keycode[] = {
 			KEY_S, KEY_D, KEY_F, KEY_G, KEY_H, KEY_J, KEY_K, KEY_L, KEY_M, KEY_Z, KEY_X,
 			KEY_C, KEY_V, KEY_B, KEY_N, KEY_M, KEY_OK, KEY_BACKSPACE, KEY_COMMA, KEY_LEFTSHIFT, 214,
 			KEY_ENTER, KEY_RIGHT, KEY_LEFT, KEY_UP, KEY_DOWN, KEY_LEFTALT, 223, KEY_MAIL, KEY_SEARCH,
-			KEY_COMMA, KEY_SPACE, 231, 228, KEY_SCALE
+			KEY_COMMA, KEY_SPACE, 231, 228
 	};
 #endif
 #endif
@@ -398,17 +398,13 @@ static irqreturn_t gpiokey_irq_handler(int irq_in, void *dev_id)
 		if(key_status == 0) // 0 : press
 		{
 			input_report_key(kp->input_devs->dev[dev], KEY_END, 1);
-#ifdef CONFIG_KERNEL_DEBUG_SEC
-//			printk("key event (keycode:%d, pressed:%d)\n", KEY_END, 1);	//sec: sm.kim
-#endif			
+			input_event(kp->input_devs->dev[dev], EV_SYN, 0, 0);
 			key_pressed = 1;
 		}
 		else if (key_status == 1) // 1 : release
 		{
 			input_report_key(kp->input_devs->dev[dev], KEY_END, 0);
-#ifdef CONFIG_KERNEL_DEBUG_SEC
-//			printk("key event (keycode:%d, pressed:%d)\n", KEY_END, 0); //sec: sm.kim
-#endif
+			input_event(kp->input_devs->dev[dev], EV_SYN, 0, 0);
 			key_pressed = 0;
 #if defined(CONFIG_MACH_COOPER) || defined(CONFIG_MACH_BENI) || defined(CONFIG_MACH_TASS) || defined(CONFIG_MACH_TASSDT) || defined(CONFIG_MACH_GIO)
 			TSP_forced_release_forkey();
