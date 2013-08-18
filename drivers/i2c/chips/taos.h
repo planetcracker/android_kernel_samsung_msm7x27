@@ -1,6 +1,7 @@
 #ifndef __TAOS_H__
 #define __TAOS_H__
 
+#include <linux/earlysuspend.h>
 
 /* i2c */
 #define I2C_M_WR 0 /* for i2c */
@@ -32,6 +33,7 @@ struct taos_data {
 	int             irq;
 	struct hrtimer timer;
 	struct timer_list light_init_timer;
+	struct early_suspend early_suspend;
 
 };
 struct taos_data *taos_global;

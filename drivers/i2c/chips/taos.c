@@ -166,9 +166,13 @@ struct class *proxsensor_class;
 
 struct device *switch_cmd_dev;
 
-static bool proximity_enable = 0;
+static bool proximity_enable = 1;
 
 static short proximity_value = 0;
+
+static bool forced = 0;
+
+static bool screen_on = 1;
 
 static struct wake_lock prx_wake_lock;
 
@@ -177,6 +181,11 @@ static struct vreg *vreg_proximity;
 static ktime_t timeA,timeB;
 #if USE_INTERRUPT
 static ktime_t timeSub;
+#endif
+
+#ifdef CONFIG_HAS_EARLYSUSPEND
+static void taos_early_suspend(struct early_suspend *h);
+static void taos_late_resume(struct early_suspend *h);
 #endif
 
 extern int board_hw_revision;
@@ -570,18 +579,24 @@ static long proximity_ioctl(struct file *filp, unsigned int cmd, unsigned long a
 
 		case TAOS_PROX_OPEN:
 			{
-				printk(KERN_INFO "[PROXIMITY] %s : case OPEN\n", __FUNCTION__);
-				taos_on(taos,PROXIMITY);
-				proximity_enable =1;
-				
+				if (proximity_enable != 1) {
+					printk(KERN_INFO "[PROXIMITY] %s : case OPEN\n", __FUNCTION__);
+					taos_on(taos,PROXIMITY);
+					proximity_enable = 1;
+				} 
+					forced = 0;	
 			}
 			break;
 
 		case TAOS_PROX_CLOSE:
 			{
-				printk(KERN_INFO "[PROXIMITY] %s : case CLOSE\n", __FUNCTION__);
-				taos_off(taos,PROXIMITY);
-				proximity_enable=0;
+				if (screen_on == 1 && proximity_enable != 0) {
+					printk(KERN_INFO "[PROXIMITY] %s : case CLOSE\n", __FUNCTION__);
+					taos_off(taos,PROXIMITY);
+					proximity_enable = 0;
+				} else {
+					forced = 1;
+				}
 			}
 			break;
 
@@ -751,6 +766,13 @@ static int taos_opt_probe(struct i2c_client *client,
 	/* wake lock init */
 	wake_lock_init(&prx_wake_lock, WAKE_LOCK_SUSPEND, "prx_wake_lock");
 
+#ifdef CONFIG_HAS_EARLYSUSPEND
+	taos->early_suspend.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN + 1;
+	taos->early_suspend.suspend = taos_early_suspend;
+	taos->early_suspend.resume = taos_late_resume;
+	register_early_suspend(&taos->early_suspend);
+#endif
+
 	/* set sysfs for light sensor */
 	proxsensor_class = class_create(THIS_MODULE, "proxsensor");
 	if (IS_ERR(proxsensor_class))
@@ -799,6 +821,7 @@ static int taos_opt_probe(struct i2c_client *client,
 	
 	// maintain power-down mode before using sensor
 	taos_off(taos,ALL);
+	proximity_enable = 0;
 	
 //++	// test for sensor 
 
@@ -827,6 +850,7 @@ exit:
 static int taos_opt_remove(struct i2c_client *client)
 {
 	struct taos_data *taos = i2c_get_clientdata(client);
+	unregister_early_suspend(&taos->early_suspend);
 #ifdef TAOS_DEBUG
 	printk(KERN_INFO "%s\n",__FUNCTION__);
 #endif	
@@ -841,6 +865,7 @@ static int taos_opt_remove(struct i2c_client *client)
 
 	return 0;
 }
+
 
 #ifdef CONFIG_PM
 static int taos_opt_suspend(struct i2c_client *client, pm_message_t mesg)
@@ -868,6 +893,29 @@ static int taos_opt_resume(struct i2c_client *client)
 #define taos_opt_resume NULL
 #endif
 
+#ifdef CONFIG_HAS_EARLYSUSPEND
+static void taos_early_suspend(struct early_suspend *h)
+{
+	struct taos_data *taos = dev_get_drvdata(switch_cmd_dev);
+	screen_on = 0;
+	if (proximity_enable != 1) {
+		taos_on(taos,PROXIMITY);
+		proximity_enable = 1;
+		forced = 1;
+	}			
+}
+
+static void taos_late_resume(struct early_suspend *h)
+{
+	struct taos_data *taos = dev_get_drvdata(switch_cmd_dev);
+	screen_on = 1;
+	if (proximity_enable != 0 && forced == 1) {
+		taos_off(taos,PROXIMITY);
+		proximity_enable = 0;
+		forced = 0;
+	}	
+}
+#endif
 
 static const struct i2c_device_id taos_id[] = {
 	{ "taos", 0 },
@@ -886,8 +934,10 @@ static struct i2c_driver taos_opt_driver = {
 //	.address_data	= &addr_data, //kerner version 3.2
 	.probe		= taos_opt_probe,
 	.remove		= taos_opt_remove,
+#ifndef CONFIG_HAS_EARLYSUSPEND
 	.suspend	= taos_opt_suspend,
 	.resume		= taos_opt_resume,
+#endif
 };
 
 static int __init taos_opt_init(void)

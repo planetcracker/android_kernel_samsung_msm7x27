@@ -111,11 +111,13 @@ static DEFINE_MUTEX(tsp_sleep_lock);
 #ifdef CONFIG_TOUCHSCREEN_SWEEP
 /* Sweep to wake */
 int SWEEP_KEY;
+int prossimo;
 int prevx = 0;
 int prevy = 320;
 int trigger = 0;
-int presstime = 100;
+int presstime = 50;
 bool scr_suspended = false;
+bool sweep_awake = true;
 static struct input_dev * sweep_pwrdev;
 static DEFINE_MUTEX(pwrlock);
 
@@ -132,7 +134,7 @@ static void sweep2wake_presspwr(struct work_struct * sweep2wake_presspwr_work) {
 	msleep(presstime);
 	input_event(sweep_pwrdev, EV_KEY, SWEEP_KEY, 0);
 	input_event(sweep_pwrdev, EV_SYN, 0, 0);
-	msleep(100);
+	msleep(50);
 	mutex_unlock(&pwrlock);
 	return;
 }
@@ -355,34 +357,38 @@ static void synaptics_ts_work_func(struct work_struct *work)
 		/* Sweep2wake */
 		if (sweeptowake == 1) {
 			if (scr_suspended == true) {
-				if (fingerInfo[i].status == 1) {
-					if (fingerInfo[i].y > 120 && fingerInfo[i].y < 200) {
-						if (fingerInfo[i].x < 40)
-							trigger = 1;
-						if (trigger == 1) {
-							if (fingerInfo[i].x > prevx) {
-								prevx = fingerInfo[i].x;
-								if (fingerInfo[i].x > 200) {
-									SWEEP_KEY = KEY_END;
-									presstime = 100;
-									sweep2wake_pwrtrigger();
+				prossimo = taos_get_proximity_value();
+				if (prossimo > 0) {
+					if (fingerInfo[i].status == 1) {
+						if (fingerInfo[i].y > 120 && fingerInfo[i].y < 200) {
+							if (fingerInfo[i].x < 40)
+								trigger = 1;
+							if (trigger == 1) {
+								if (fingerInfo[i].x > prevx) {
+									prevx = fingerInfo[i].x;
+									if (fingerInfo[i].x > 200) {
+										SWEEP_KEY = KEY_END;
+										presstime = 50;
+										sweep2wake_pwrtrigger();
+										trigger = 0;
+										prevx = 0;
+										scr_suspended = false;
+									}
+								} else {
 									trigger = 0;
 									prevx = 0;
-									scr_suspended = false;
 								}
-							} else {
-								trigger = 0;
-								prevx = 0;
 							}
 						}
+					} else {
+						trigger = 0;
+						prevx = 0;
 					}
-				} else {
-					trigger = 0;
-					prevx = 0;
 				}
 			}
 		}
 		/* end Sweep2wake */
+if (sweep_awake) {
 	if (scr_suspended == false) {
 		if (fingerInfo[i].status == 1) {
 			if (fingerInfo[i].y > 317)
@@ -407,7 +413,7 @@ static void synaptics_ts_work_func(struct work_struct *work)
 								prevy = fingerInfo[i].y;
 								if (fingerInfo[i].y < 300) {
 									SWEEP_KEY = SKEY_TWO;
-									presstime = 100;
+									presstime = 50;
 									sweep2wake_pwrtrigger();
 									trigger = 0;
 									prevy = 320;
@@ -421,7 +427,7 @@ static void synaptics_ts_work_func(struct work_struct *work)
 									prevy = fingerInfo[i].y;
 									if (fingerInfo[i].y < 300) {
 										SWEEP_KEY = SKEY_THREE;
-										presstime = 100;
+										presstime = 50;
 										sweep2wake_pwrtrigger();
 										trigger = 0;
 										prevy = 320;
@@ -435,7 +441,7 @@ static void synaptics_ts_work_func(struct work_struct *work)
 									prevy = fingerInfo[i].y;
 									if (fingerInfo[i].y < 300) {
 										SWEEP_KEY = KEY_END;
-										presstime = 100;
+										presstime = 50;
 										sweep2wake_pwrtrigger();
 										trigger = 0;
 										prevy = 320;
@@ -452,6 +458,7 @@ static void synaptics_ts_work_func(struct work_struct *work)
 			prevy = 320;
 		}
 	}
+}
 #endif
 	}
 
@@ -883,6 +890,10 @@ static void synaptics_ts_late_resume(struct early_suspend *h)
 		trigger = 0;
 		prevx = 0;
 	}
+	if (sweepkeyone == 1 || sweepkeytwo == 1 || sweepkeythree == 1 || sweeptolock == 1)
+		sweep_awake = true;
+	else
+		sweep_awake = false;
 }
 #else
 static void synaptics_ts_early_suspend(struct early_suspend *h)
