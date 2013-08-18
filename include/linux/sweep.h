@@ -16,7 +16,13 @@
 #define _LINUX_SWEEP_H
 
 extern int sweeptowake;
-
+extern int sweeptolock;
+extern int sweepkeyone;
+extern int sweepkeytwo;
+extern int sweepkeythree;
+extern int SKEY_ONE;
+extern int SKEY_TWO;
+extern int SKEY_THREE;
 
 #endif
 

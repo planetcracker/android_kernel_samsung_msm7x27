@@ -30,6 +30,7 @@
 #include <linux/mutex.h>
 #ifdef CONFIG_TOUCHSCREEN_SWEEP
 #include <linux/sweep.h>
+#include "../../../arch/arm/mach-msm/acpuclock.h"
 #endif
 
 /* firmware - update */
@@ -109,8 +110,11 @@ static DEFINE_MUTEX(tsp_sleep_lock);
 
 #ifdef CONFIG_TOUCHSCREEN_SWEEP
 /* Sweep to wake */
+int SWEEP_KEY;
 int prevx = 0;
+int prevy = 320;
 int trigger = 0;
+int presstime = 100;
 bool scr_suspended = false;
 static struct input_dev * sweep_pwrdev;
 static DEFINE_MUTEX(pwrlock);
@@ -122,10 +126,11 @@ extern void sweep_setdev(struct input_dev * input_device) {
 EXPORT_SYMBOL(sweep_setdev);
 
 static void sweep2wake_presspwr(struct work_struct * sweep2wake_presspwr_work) {
-	input_event(sweep_pwrdev, EV_KEY, KEY_END, 1);
+	acpuclk_set_rate(0, 604800, SETRATE_CPUFREQ);
+	input_event(sweep_pwrdev, EV_KEY, SWEEP_KEY, 1);
 	input_event(sweep_pwrdev, EV_SYN, 0, 0);
-	msleep(100);
-	input_event(sweep_pwrdev, EV_KEY, KEY_END, 0);
+	msleep(presstime);
+	input_event(sweep_pwrdev, EV_KEY, SWEEP_KEY, 0);
 	input_event(sweep_pwrdev, EV_SYN, 0, 0);
 	msleep(100);
 	mutex_unlock(&pwrlock);
@@ -358,6 +363,8 @@ static void synaptics_ts_work_func(struct work_struct *work)
 							if (fingerInfo[i].x > prevx) {
 								prevx = fingerInfo[i].x;
 								if (fingerInfo[i].x > 200) {
+									SWEEP_KEY = KEY_END;
+									presstime = 100;
 									sweep2wake_pwrtrigger();
 									trigger = 0;
 									prevx = 0;
@@ -376,6 +383,75 @@ static void synaptics_ts_work_func(struct work_struct *work)
 			}
 		}
 		/* end Sweep2wake */
+	if (scr_suspended == false) {
+		if (fingerInfo[i].status == 1) {
+			if (fingerInfo[i].y > 317)
+				trigger = 1;
+			if (trigger == 1) {
+				if (sweepkeyone == 1 && fingerInfo[i].x < 80) {
+					if (fingerInfo[i].y < prevy) {
+							prevy = fingerInfo[i].y;
+							if (fingerInfo[i].y < 300) {
+								SWEEP_KEY = SKEY_ONE;
+								presstime = 500;
+								sweep2wake_pwrtrigger();
+								trigger = 0;
+								prevy = 320;
+							}
+					} else {
+						trigger = 0;
+						prevy = 320;
+					}
+				} else if (sweepkeytwo == 1 && fingerInfo[i].x < 160) {
+						if (fingerInfo[i].y < prevy) {
+								prevy = fingerInfo[i].y;
+								if (fingerInfo[i].y < 300) {
+									SWEEP_KEY = SKEY_TWO;
+									presstime = 100;
+									sweep2wake_pwrtrigger();
+									trigger = 0;
+									prevy = 320;
+								}
+						} else {
+							trigger = 0;
+							prevy = 320;
+						}
+					} else if (sweepkeythree == 1 && fingerInfo[i].x < 220) {
+							if (fingerInfo[i].y < prevy) {
+									prevy = fingerInfo[i].y;
+									if (fingerInfo[i].y < 300) {
+										SWEEP_KEY = SKEY_THREE;
+										presstime = 100;
+										sweep2wake_pwrtrigger();
+										trigger = 0;
+										prevy = 320;
+									}
+							} else {
+								trigger = 0;
+								prevy = 320;
+							}
+						} else if (sweeptolock == 1) {
+							if (fingerInfo[i].y < prevy) {
+									prevy = fingerInfo[i].y;
+									if (fingerInfo[i].y < 300) {
+										SWEEP_KEY = KEY_END;
+										presstime = 100;
+										sweep2wake_pwrtrigger();
+										trigger = 0;
+										prevy = 320;
+										scr_suspended = true;
+									}
+							} else {
+								trigger = 0;
+								prevy = 320;
+							}
+						}
+				}
+		} else {
+			trigger = 0;
+			prevy = 320;
+		}
+	}
 #endif
 	}
 
