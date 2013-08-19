@@ -35,6 +35,15 @@ int sweepkeythree;
 int SKEY_ONE;
 int SKEY_TWO;
 int SKEY_THREE;
+int wake_start;
+int wake_end;
+int area_start;
+int area_end;
+int wake_sens_factor;
+int deadzone;
+int deadzone_px;
+int key_trigger;
+int key_sens_factor;
 
 /* sysfs interface for "sweeptowake" */
 #define show_one(file_name, object)					\
@@ -52,6 +61,9 @@ show_one(sweepkeythree, sweepkeythree);
 show_one(keycode_one, SKEY_ONE);
 show_one(keycode_two, SKEY_TWO);
 show_one(keycode_three, SKEY_THREE);
+show_one(wake_sens_factor, wake_sens_factor);
+show_one(key_sens_factor, key_sens_factor);
+show_one(deadzone_px, deadzone_px);
 
 static ssize_t sweeptowake_store(struct kobject *kobj, struct kobj_attribute *attr, const char *buf, size_t count)
 {
@@ -166,6 +178,57 @@ static ssize_t keycode_three_store(struct kobject *kobj, struct kobj_attribute *
 	SKEY_THREE = input;
 	return count;
 }
+static ssize_t wake_sens_factor_store(struct kobject *kobj, struct kobj_attribute *attr, const char *buf, size_t count)
+{
+	unsigned int input;
+	int ret;
+	ret = sscanf(buf, "%du", &input);
+
+	if (ret != 1 || input > 8 ||
+			input < 1) {
+		return -EINVAL;
+	}
+
+	wake_sens_factor = input;
+	wake_start = wake_sens_factor*10;
+	wake_end = 240-(wake_sens_factor*10);
+	area_start = 160-(wake_sens_factor*10);
+	area_end = 160+(wake_sens_factor*10);
+	return count;
+}
+
+static ssize_t key_sens_factor_store(struct kobject *kobj, struct kobj_attribute *attr, const char *buf, size_t count)
+{
+	unsigned int input;
+	int ret;
+	ret = sscanf(buf, "%du", &input);
+
+	if (ret != 1 || input > 9 ||
+			input < 1) {
+		return -EINVAL;
+	}
+
+	key_sens_factor = input;
+	key_trigger = 320-(100-(key_sens_factor*10));
+	return count;
+}
+
+static ssize_t deadzone_px_store(struct kobject *kobj, struct kobj_attribute *attr, const char *buf, size_t count)
+{
+	unsigned int input;
+	int ret;
+	ret = sscanf(buf, "%du", &input);
+
+	if (ret != 1 || input > 20 ||
+			input < 1) {
+		return -EINVAL;
+	}
+
+	deadzone_px = input;
+	deadzone = 320-deadzone_px;
+	return count;
+}
+
 
 #define define_kobj_rw_attr(_name)		\
 static struct kobj_attribute _name##_attribute =	\
@@ -179,6 +242,9 @@ define_kobj_rw_attr(sweepkeythree);
 define_kobj_rw_attr(keycode_one);
 define_kobj_rw_attr(keycode_two);
 define_kobj_rw_attr(keycode_three);
+define_kobj_rw_attr(wake_sens_factor);
+define_kobj_rw_attr(key_sens_factor);
+define_kobj_rw_attr(deadzone_px);
 
 static struct attribute *sweeptowake_attrs[] = {
 &sweeptowake_attribute.attr,
@@ -189,6 +255,9 @@ static struct attribute *sweeptowake_attrs[] = {
 &keycode_one_attribute.attr,
 &keycode_two_attribute.attr,
 &keycode_three_attribute.attr,
+&wake_sens_factor_attribute.attr,
+&key_sens_factor_attribute.attr,
+&deadzone_px_attribute.attr,
 NULL,
 };
 
@@ -211,6 +280,15 @@ static int __init sweep_init(void)
 	SKEY_ONE = KEY_HOME;
 	SKEY_TWO = KEY_HOME;
 	SKEY_THREE = KEY_BACK;
+	wake_sens_factor = 4;
+	key_sens_factor = 8;
+	deadzone_px = 4;
+	wake_start = wake_sens_factor*10;
+	wake_end = 240-(wake_sens_factor*10);
+	area_start = 160-(wake_sens_factor*10);
+	area_end = 160+(wake_sens_factor*10);
+	deadzone = 320-deadzone_px;
+	key_trigger = 320-(100-(key_sens_factor*10));
 
 	sweeptowake_kobj = kobject_create_and_add("sweep", kernel_kobj);
 	if (!sweeptowake_kobj) {

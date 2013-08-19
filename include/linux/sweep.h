@@ -23,6 +23,12 @@ extern int sweepkeythree;
 extern int SKEY_ONE;
 extern int SKEY_TWO;
 extern int SKEY_THREE;
+extern int wake_start;
+extern int wake_end;
+extern int area_start;
+extern int area_end;
+extern int deadzone;
+extern int key_trigger;
 extern short taos_get_proximity_value(void);
 
 #endif
