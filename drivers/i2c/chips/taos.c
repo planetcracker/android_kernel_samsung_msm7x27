@@ -25,6 +25,7 @@
 #include <linux/timer.h>
 #include <linux/jiffies.h>
 #include <linux/wakelock.h>
+#include <linux/sweep.h>
 #include <mach/vreg.h>
 
 #include "taos.h"
@@ -171,8 +172,6 @@ static bool proximity_enable = 1;
 static short proximity_value = 0;
 
 static bool forced = 0;
-
-static bool screen_on = 1;
 
 static struct wake_lock prx_wake_lock;
 
@@ -328,6 +327,8 @@ static void taos_work_func_prox(struct work_struct *work)
 	{
 		printk("[HSS] [%s] +++ adc_data=[%d], threshold_high=[%d],  threshold_min=[%d]\n", __func__, adc_data, threshold_high, threshold_low);
 		proximity_value = 1;
+		if (scr_suspended)
+			in_pocket();
 		prox_int_thresh[0] = (PRX_THRSH_LO_PARAM) & 0xFF;
 		prox_int_thresh[1] = (PRX_THRSH_LO_PARAM >> 8) & 0xFF;
 		prox_int_thresh[2] = (0xFFFF) & 0xFF;
@@ -341,6 +342,8 @@ static void taos_work_func_prox(struct work_struct *work)
 	{
 		printk("[HSS] [%s] --- adc_data=[%d], threshold_high=[%d],  threshold_min=[%d]\n", __func__, adc_data, threshold_high, threshold_low);
 		proximity_value = 0;
+		if (scr_suspended)
+			out_of_pocket();
 		prox_int_thresh[0] = (0x0000) & 0xFF;
 		prox_int_thresh[1] = (0x0000 >> 8) & 0xFF;
 		prox_int_thresh[2] = (PRX_THRSH_HI_PARAM) & 0xFF;
@@ -354,7 +357,7 @@ static void taos_work_func_prox(struct work_struct *work)
     {
         printk("[HSS] [%s] Error! Not Common Case!adc_data=[%d], threshold_high=[%d],  threshold_min=[%d]\n", __func__, adc_data, threshold_high, threshold_low);
     }
-      
+
 	if(proximity_value ==0)
 	{
 		timeB = ktime_get();
@@ -590,7 +593,7 @@ static long proximity_ioctl(struct file *filp, unsigned int cmd, unsigned long a
 
 		case TAOS_PROX_CLOSE:
 			{
-				if (screen_on == 1 && proximity_enable != 0) {
+				if (!scr_suspended && proximity_enable != 0) {
 					printk(KERN_INFO "[PROXIMITY] %s : case CLOSE\n", __FUNCTION__);
 					taos_off(taos,PROXIMITY);
 					proximity_enable = 0;
@@ -866,7 +869,7 @@ static int taos_opt_remove(struct i2c_client *client)
 	return 0;
 }
 
-
+#ifndef CONFIG_HAS_EARLYSUSPEND
 #ifdef CONFIG_PM
 static int taos_opt_suspend(struct i2c_client *client, pm_message_t mesg)
 {
@@ -892,12 +895,13 @@ static int taos_opt_resume(struct i2c_client *client)
 #define taos_opt_suspend NULL
 #define taos_opt_resume NULL
 #endif
+#endif
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
 static void taos_early_suspend(struct early_suspend *h)
 {
 	struct taos_data *taos = dev_get_drvdata(switch_cmd_dev);
-	screen_on = 0;
+	scr_suspended = true;
 	if (proximity_enable != 1) {
 		taos_on(taos,PROXIMITY);
 		proximity_enable = 1;
@@ -908,7 +912,7 @@ static void taos_early_suspend(struct early_suspend *h)
 static void taos_late_resume(struct early_suspend *h)
 {
 	struct taos_data *taos = dev_get_drvdata(switch_cmd_dev);
-	screen_on = 1;
+	scr_suspended = false;
 	if (proximity_enable != 0 && forced == 1) {
 		taos_off(taos,PROXIMITY);
 		proximity_enable = 0;

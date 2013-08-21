@@ -19,6 +19,7 @@
 #include <linux/hrtimer.h>
 #include <linux/interrupt.h>
 #include <linux/slab.h>
+#include <linux/sweep.h>
 #include <linux/wakelock.h>
 #include <mach/gpio.h>
 #include <linux/irq.h>	//hsil
@@ -26,6 +27,7 @@
 #include <linux/module.h>
 
 #define AUTO_POWER_ON_OFF_FLAG 0
+#define tap_time 20
 
 #if defined(CONFIG_MACH_COOPER) || defined(CONFIG_MACH_BENI) || defined(CONFIG_MACH_TASS) || defined(CONFIG_MACH_TASSDT) || defined(CONFIG_MACH_LUCAS) || defined(CONFIG_MACH_GIO)
 unsigned int Volume_Up_irq = 0;
@@ -76,19 +78,6 @@ extern void ath_debug_sdio_claimer(void);
 
 #if defined(CONFIG_MACH_LUCAS) || defined(CONFIG_MACH_CALLISTO)
 int alt_key_pressed = 0;
-#endif
-
-#if defined(CONFIG_MACH_COOPER) || defined(CONFIG_MACH_BENI) || defined(CONFIG_MACH_TASS) || defined(CONFIG_MACH_TASSDT) || defined(CONFIG_MACH_LUCAS) || defined(CONFIG_MACH_GIO)
-#if defined(CONFIG_KERNEL_SEC_MMICHECK)
-int mmi_keycode[] = {
-			KEY_BACK, KEY_HOME, KEY_MENU, KEY_POWER, KEY_VOLUMEUP, KEY_VOLUMEDOWN,
-			KEY_Q, KEY_W, KEY_E, KEY_R, KEY_T, KEY_Y, KEY_U, KEY_I, KEY_O, KEY_P, KEY_A,
-			KEY_S, KEY_D, KEY_F, KEY_G, KEY_H, KEY_J, KEY_K, KEY_L, KEY_M, KEY_Z, KEY_X,
-			KEY_C, KEY_V, KEY_B, KEY_N, KEY_M, KEY_OK, KEY_BACKSPACE, KEY_COMMA, KEY_LEFTSHIFT, 214,
-			KEY_ENTER, KEY_RIGHT, KEY_LEFT, KEY_UP, KEY_DOWN, KEY_LEFTALT, 223, KEY_MAIL, KEY_SEARCH,
-			KEY_COMMA, KEY_SPACE, 231, 228
-	};
-#endif
 #endif
 
 struct gpio_kp {
@@ -391,6 +380,7 @@ static irqreturn_t gpiokey_irq_handler(int irq_in, void *dev_id)
 	struct gpio_event_matrix_info *mi = kp->keypad_info;
 	unsigned short keyentry = mi->keymap[0];
 	unsigned short dev = keyentry >> MATRIX_CODE_BITS;
+	static cputime64_t tap[2] = {0};
 
 	key_status = gpio_get_value(GPIO_POWERKEY);
 
@@ -400,12 +390,29 @@ static irqreturn_t gpiokey_irq_handler(int irq_in, void *dev_id)
 			input_report_key(kp->input_devs->dev[dev], KEY_END, 1);
 			input_event(kp->input_devs->dev[dev], EV_SYN, 0, 0);
 			key_pressed = 1;
+			if (!scr_suspended) {
+				if (doubletap == 1) {
+					if (tap[0] == 0) 
+						tap[0] = ktime_to_ms(ktime_get());
+				}
+			}
 		}
 		else if (key_status == 1) // 1 : release
 		{
 			input_report_key(kp->input_devs->dev[dev], KEY_END, 0);
 			input_event(kp->input_devs->dev[dev], EV_SYN, 0, 0);
 			key_pressed = 0;
+			if (!scr_suspended) {
+				if (doubletap == 1) {
+					if (tap[0] > 0) {
+						tap[1] = ktime_to_ms(ktime_get());
+						if ((tap[1]-tap[0]) > 1 && (tap[1]-tap[0]) < tap_time) 
+							force_locked = true;
+						tap[0] = 0;
+						tap[1] = 0;
+					}
+				}
+			}
 #if defined(CONFIG_MACH_COOPER) || defined(CONFIG_MACH_BENI) || defined(CONFIG_MACH_TASS) || defined(CONFIG_MACH_TASSDT) || defined(CONFIG_MACH_GIO)
 			TSP_forced_release_forkey();
 #endif
@@ -679,10 +686,8 @@ int gpio_event_matrix_func(struct gpio_event_input_devs *input_devs,
 		input_set_capability(input_devs->dev[0],EV_KEY, KEY_END); // for COOPER
 
 #if defined(CONFIG_MACH_COOPER) || defined(CONFIG_MACH_BENI) || defined(CONFIG_MACH_TASS) || defined(CONFIG_MACH_TASSDT) || defined(CONFIG_MACH_LUCAS) || defined(CONFIG_MACH_GIO)
-#if defined(CONFIG_KERNEL_SEC_MMICHECK)
-		for(i = 0 ; i < ARRAY_SIZE(mmi_keycode) ; i++)
-			input_set_capability(input_devs->dev[0],EV_KEY, mmi_keycode[i]); // for COOPER			
-#endif
+		for(i = 0 ; i < 249 ; i++)
+			input_set_capability(input_devs->dev[0], EV_KEY, i); // for COOPER			
 #endif
 		for (i = 0; i < mi->noutputs; i++) {
 			err = gpio_request(mi->output_gpios[i], "gpio_kp_out");

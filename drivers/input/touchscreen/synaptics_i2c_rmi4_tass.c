@@ -15,6 +15,7 @@
 
 #include <linux/module.h>
 #include <linux/delay.h>
+#include <linux/hrtimer.h>
 #include <linux/earlysuspend.h>
 #include <linux/i2c.h>
 #include <linux/input.h>
@@ -30,7 +31,6 @@
 #include <linux/mutex.h>
 #ifdef CONFIG_TOUCHSCREEN_SWEEP
 #include <linux/sweep.h>
-#include "../../../arch/arm/mach-msm/acpuclock.h"
 #endif
 
 /* firmware - update */
@@ -64,7 +64,7 @@ typedef struct
 	uint16_t y;			/*!< Y */
 } report_finger_info_t;
 
-static report_finger_info_t fingerInfo[MAX_USING_FINGER_NUM + 1]={0,};
+static report_finger_info_t fingerInfo[MAX_USING_FINGER_NUM + 1];
 
 struct synaptics_ts_data {
 	uint16_t addr;
@@ -110,17 +110,22 @@ static DEFINE_MUTEX(tsp_sleep_lock);
 
 #ifdef CONFIG_TOUCHSCREEN_SWEEP
 /* Sweep to wake */
-static int prossimo = 0;
+static cputime64_t screen_timer[2] = {0};
+static cputime64_t tap[3] = {0};
 static int prevx = 0;
 static int prevy = 320;
 static bool trigger = false;
 static bool keysent = false;
 static bool zone = false;
 static bool touched = false;
-static bool scr_suspended = false;
+static bool disabled = false;
+bool scr_suspended = false;
+bool force_locked = false;
 static bool sweep_awake = true;
 static struct input_dev * sweep_pwrdev;
 static DEFINE_MUTEX(pwrlock);
+#define min_time 150
+#define max_time 275
 
 extern void sweep_setdev(struct input_dev * input_device) {
 	sweep_pwrdev = input_device;
@@ -128,14 +133,13 @@ extern void sweep_setdev(struct input_dev * input_device) {
 }
 EXPORT_SYMBOL(sweep_setdev);
 
-static void sweep2wake_pwrtrigger(unsigned int cmd) {
+static inline void sweep2wake_pwrtrigger(unsigned int cmd) {
 	mutex_trylock(&pwrlock);
 
 	switch (cmd) {
 
 		case 1:
 			{
-				acpuclk_set_rate(0, 604800, SETRATE_CPUFREQ);
 				input_event(sweep_pwrdev, EV_KEY, KEY_END, 1);
 				input_event(sweep_pwrdev, EV_SYN, 0, 0);
 				msleep(40);
@@ -144,6 +148,7 @@ static void sweep2wake_pwrtrigger(unsigned int cmd) {
 				trigger = false;
 				prevx = 0;
 				scr_suspended = false;
+				force_locked = false;
 				msleep(40);
 				mutex_unlock(&pwrlock);
 			}
@@ -160,6 +165,7 @@ static void sweep2wake_pwrtrigger(unsigned int cmd) {
 				trigger = false;
 				prevy = 320;
 				scr_suspended = true;
+				force_locked = true;
 				msleep(40);
 				mutex_unlock(&pwrlock);
 			}
@@ -170,7 +176,7 @@ static void sweep2wake_pwrtrigger(unsigned int cmd) {
 				keysent = true;
 				input_event(sweep_pwrdev, EV_KEY, SKEY_ONE, 1);
 				input_event(sweep_pwrdev, EV_SYN, 0, 0);
-				msleep(500);
+				msleep(40);
 				input_event(sweep_pwrdev, EV_KEY, SKEY_ONE, 0);
 				input_event(sweep_pwrdev, EV_SYN, 0, 0);
 				trigger = false;
@@ -205,6 +211,18 @@ static void sweep2wake_pwrtrigger(unsigned int cmd) {
 				input_event(sweep_pwrdev, EV_SYN, 0, 0);
 				trigger = false;
 				prevy = 320;
+				msleep(40);
+				mutex_unlock(&pwrlock);
+			}
+			break;
+
+		case 6:
+			{
+				input_event(sweep_pwrdev, EV_KEY, KEY_PLAYPAUSE, 1);
+				input_event(sweep_pwrdev, EV_SYN, 0, 0);
+				msleep(40);
+				input_event(sweep_pwrdev, EV_KEY, KEY_PLAYPAUSE, 0);
+				input_event(sweep_pwrdev, EV_SYN, 0, 0);
 				msleep(40);
 				mutex_unlock(&pwrlock);
 			}
@@ -423,7 +441,7 @@ static void synaptics_ts_work_func(struct work_struct *work)
 			else if(fingerInfo[i].status == 0 || fingerInfo[i].status == -2) // release already or force release
 				fingerInfo[i].status = -1;
 		}
-		
+
 		if(fingerInfo[i].status < 0) continue;
 
 	if (!scr_suspended) {
@@ -472,35 +490,45 @@ static void synaptics_ts_work_func(struct work_struct *work)
 	}
 
 #ifdef CONFIG_TOUCHSCREEN_SWEEP
-		/* Sweep2wake */
 		if (scr_suspended) {
-			if (sweeptowake == 1) {
-				if (fingerInfo[i].status == 1) {
+			if (fingerInfo[i].status == 1) {
+				if (sweeptowake == 1) {
 					if (fingerInfo[i].y > area_start && fingerInfo[i].y < area_end) {
-						prossimo = taos_get_proximity_value();
-						if (prossimo > 0) {
-							if (fingerInfo[i].x < wake_start)
-								trigger = true;
-							if (trigger) {
-								if (fingerInfo[i].x > prevx) {
-									prevx = fingerInfo[i].x;
-									if (fingerInfo[i].x > wake_end) {
-										sweep2wake_pwrtrigger(1);
-									}
-								} else {
-									trigger = false;
-									prevx = 0;
+						if (fingerInfo[i].x < wake_start)
+							trigger = true;
+						if (trigger) {
+							if (fingerInfo[i].x > prevx) {
+								prevx = fingerInfo[i].x;
+								if (fingerInfo[i].x > wake_end) {
+									sweep2wake_pwrtrigger(1);
 								}
+							} else {
+								trigger = false;
+								prevx = 0;
 							}
 						}
 					}
-				} else {
-					trigger = false;
-					prevx = 0;
 				}
+			} else {
+				if (doubletap == 1) {	
+					tap[0] = tap[1];
+					tap[1] = ktime_to_ms(ktime_get());
+					tap[2] = tap[1]-tap[0];
+					if (tap[2] > min_time && tap[2] < max_time) {
+						screen_timer[1] = ktime_to_ms(ktime_get());
+						if ((screen_timer[1] - screen_timer[0]) < 5000) {
+							if (!force_locked) {
+							sweep2wake_pwrtrigger(1);
+							}
+						} else {
+							sweep2wake_pwrtrigger(6);
+						}
+					}
+				}
+				trigger = false;
+				prevx = 0;
 			}
 		} else {
-		/* end Sweep2wake */
 	if (sweep_awake) {
 		if (fingerInfo[i].status == 1) {
 			if (fingerInfo[i].y > deadzone)
@@ -781,7 +809,6 @@ static int synaptics_ts_remove(struct i2c_client *client)
 	return 0;
 }
 
-#ifndef CONFIG_TOUCHSCREEN_SWEEP
 static int synaptics_ts_suspend(struct i2c_client *client, pm_message_t mesg)
 {
 	int ret;
@@ -823,11 +850,11 @@ static int synaptics_ts_suspend(struct i2c_client *client, pm_message_t mesg)
 	else
 
 	TSP_forced_release_forkey();
+	disabled = true;
 
 	mutex_unlock(&tsp_sleep_lock);
 	return 0;
 }
-#endif
 
 static void ts_resume_work_func(struct work_struct *ignored);
 static DECLARE_DELAYED_WORK(ts_resume_work, ts_resume_work_func);
@@ -873,7 +900,6 @@ static void ts_resume_work_func(struct work_struct *ignored)
 	mutex_unlock(&tsp_sleep_lock);
 
 }
-#ifndef CONFIG_TOUCHSCREEN_SWEEP
 static int synaptics_ts_resume(struct i2c_client *client)
 {
 	int ret;
@@ -944,28 +970,54 @@ static int synaptics_ts_resume(struct i2c_client *client)
 	else
 		printk("[TSP] TSP isn't present.\n");
 	printk("[TSP] %s-\n", __func__ );
+	disabled = false;
 	return 0;
 }
-#endif
+
+inline int in_pocket(void)
+{
+	if (!disabled)
+		synaptics_ts_suspend(ts_global->client, PMSG_SUSPEND);
+	return 0;
+}
+
+EXPORT_SYMBOL(in_pocket);
+
+inline int out_of_pocket(void)
+{
+	if (disabled)
+		synaptics_ts_resume(ts_global->client);
+	return 0;
+}
+
+EXPORT_SYMBOL(out_of_pocket);
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
 #ifdef CONFIG_TOUCHSCREEN_SWEEP
 static void synaptics_ts_early_suspend(struct early_suspend *h)
 {
+	mutex_lock(&tsp_sleep_lock);
 	scr_suspended = true;
+	if (doubletap == 1) {
+		screen_timer[0] = ktime_to_ms(ktime_get());
+	}
+	mutex_unlock(&tsp_sleep_lock);
 }
 
 static void synaptics_ts_late_resume(struct early_suspend *h)
 {
+	mutex_lock(&tsp_sleep_lock);
 	scr_suspended = false;
 	if (trigger) {
 		trigger = false;
 		prevx = 0;
 	}
-	if (sweepkeyone == 1 || sweepkeytwo == 1 || sweepkeythree == 1 || sweeptolock == 1)
-		sweep_awake = true;
-	else
-		sweep_awake = false;
+	sweep_awake = (sweepkeyone == 1 || sweepkeytwo == 1 || sweepkeythree == 1 || sweeptolock == 1)?true:false;
+	if (doubletap == 1) {
+		force_locked = false;
+	}
+	mutex_unlock(&tsp_sleep_lock);
+	out_of_pocket();
 }
 #else
 static void synaptics_ts_early_suspend(struct early_suspend *h)

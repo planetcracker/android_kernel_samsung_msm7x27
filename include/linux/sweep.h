@@ -16,6 +16,7 @@
 #define _LINUX_SWEEP_H
 
 extern int sweeptowake;
+extern int doubletap;
 extern int sweeptolock;
 extern int sweepkeyone;
 extern int sweepkeytwo;
@@ -29,6 +30,10 @@ extern int area_start;
 extern int area_end;
 extern int deadzone;
 extern int key_trigger;
+extern bool force_locked;
+extern bool scr_suspended;
+extern int out_of_pocket(void);
+extern int in_pocket(void);
 extern short taos_get_proximity_value(void);
 
 #endif

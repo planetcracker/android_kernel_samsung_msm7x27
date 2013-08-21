@@ -28,6 +28,7 @@
 #include <linux/input.h>
 
 int sweeptowake;
+int doubletap;
 int sweeptolock;
 int sweepkeyone;
 int sweepkeytwo;
@@ -54,6 +55,7 @@ static ssize_t show_##file_name						\
 }
 
 show_one(sweeptowake, sweeptowake);
+show_one(doubletap, doubletap);
 show_one(sweeptolock, sweeptolock);
 show_one(sweepkeyone, sweepkeyone);
 show_one(sweepkeytwo, sweepkeytwo);
@@ -77,6 +79,20 @@ static ssize_t sweeptowake_store(struct kobject *kobj, struct kobj_attribute *at
 	}
 
 	sweeptowake = input;
+	return count;
+}
+static ssize_t doubletap_store(struct kobject *kobj, struct kobj_attribute *attr, const char *buf, size_t count)
+{
+	unsigned int input;
+	int ret;
+	ret = sscanf(buf, "%du", &input);
+
+	if (ret != 1 || input > 1 ||
+			input < 0) {
+		return -EINVAL;
+	}
+
+	doubletap = input;
 	return count;
 }
 static ssize_t sweeptolock_store(struct kobject *kobj, struct kobj_attribute *attr, const char *buf, size_t count)
@@ -235,6 +251,7 @@ static struct kobj_attribute _name##_attribute =	\
 	__ATTR(_name, 0666, show_##_name, _name##_store)
 
 define_kobj_rw_attr(sweeptowake);
+define_kobj_rw_attr(doubletap);
 define_kobj_rw_attr(sweeptolock);
 define_kobj_rw_attr(sweepkeyone);
 define_kobj_rw_attr(sweepkeytwo);
@@ -248,6 +265,7 @@ define_kobj_rw_attr(deadzone_px);
 
 static struct attribute *sweeptowake_attrs[] = {
 &sweeptowake_attribute.attr,
+&doubletap_attribute.attr,
 &sweeptolock_attribute.attr,
 &sweepkeyone_attribute.attr,
 &sweepkeytwo_attribute.attr,
@@ -273,16 +291,17 @@ static int __init sweep_init(void)
 	int sweeptowake_retval;
 
 	sweeptowake = 1; /* Sweep2Wake enabled by default */
+	doubletap = 1; /* DoubleTap2Wake enabled by default */
 	sweeptolock = 1; /* Sweep2lock enabled by default */
 	sweepkeyone = 1;
 	sweepkeytwo = 1;
 	sweepkeythree = 1;
-	SKEY_ONE = KEY_HOME;
+	SKEY_ONE = KEY_SEARCH;
 	SKEY_TWO = KEY_HOME;
 	SKEY_THREE = KEY_BACK;
 	wake_sens_factor = 4;
 	key_sens_factor = 8;
-	deadzone_px = 4;
+	deadzone_px = 3;
 	wake_start = wake_sens_factor*10;
 	wake_end = 240-(wake_sens_factor*10);
 	area_start = 160-(wake_sens_factor*10);
