@@ -510,19 +510,21 @@ static void synaptics_ts_work_func(struct work_struct *work)
 					}
 				}
 			} else {
-				if (doubletap == 1) {	
+				if (doubletap == 1) {
 					tap[0] = tap[1];
 					tap[1] = ktime_to_ms(ktime_get());
 					tap[2] = tap[1]-tap[0];
 					if (tap[2] > min_time && tap[2] < max_time) {
-						screen_timer[1] = ktime_to_ms(ktime_get());
-						if ((screen_timer[1] - screen_timer[0]) < 5000) {
-							if (!force_locked) {
-							sweep2wake_pwrtrigger(1);
+						if (mediacontrol == 1) {
+							screen_timer[1] = ktime_to_ms(ktime_get());
+							if ((screen_timer[1] - screen_timer[0]) < 5000) {
+								if (!force_locked) {
+								sweep2wake_pwrtrigger(1);
+								}
+							} else {
+								sweep2wake_pwrtrigger(6);
 							}
-						} else {
-							sweep2wake_pwrtrigger(6);
-						}
+						} else { sweep2wake_pwrtrigger(1); }
 					}
 				}
 				trigger = false;
@@ -998,7 +1000,7 @@ static void synaptics_ts_early_suspend(struct early_suspend *h)
 {
 	mutex_lock(&tsp_sleep_lock);
 	scr_suspended = true;
-	if (doubletap == 1) {
+	if (doubletap == 1 && mediacontrol == 1) {
 		screen_timer[0] = ktime_to_ms(ktime_get());
 	}
 	mutex_unlock(&tsp_sleep_lock);

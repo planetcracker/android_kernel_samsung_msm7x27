@@ -17,6 +17,7 @@
 
 extern int sweeptowake;
 extern int doubletap;
+extern int mediacontrol;
 extern int sweeptolock;
 extern int sweepkeyone;
 extern int sweepkeytwo;

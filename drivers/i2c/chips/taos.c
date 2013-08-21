@@ -29,6 +29,7 @@
 #include <mach/vreg.h>
 
 #include "taos.h"
+#include "../../../arch/arm/mach-msm/acpuclock.h"
 
 /*********** for debug **********************************************************/
 #if 1 
@@ -342,6 +343,7 @@ static void taos_work_func_prox(struct work_struct *work)
 	{
 		printk("[HSS] [%s] --- adc_data=[%d], threshold_high=[%d],  threshold_min=[%d]\n", __func__, adc_data, threshold_high, threshold_low);
 		proximity_value = 0;
+		acpuclk_set_rate(0, 604800, SETRATE_CPUFREQ);
 		if (scr_suspended)
 			out_of_pocket();
 		prox_int_thresh[0] = (0x0000) & 0xFF;
