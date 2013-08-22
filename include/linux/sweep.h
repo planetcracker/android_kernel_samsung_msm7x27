@@ -15,13 +15,13 @@
 #ifndef _LINUX_SWEEP_H
 #define _LINUX_SWEEP_H
 
-extern int sweeptowake;
-extern int doubletap;
-extern int mediacontrol;
-extern int sweeptolock;
-extern int sweepkeyone;
-extern int sweepkeytwo;
-extern int sweepkeythree;
+extern bool sweeptowake;
+extern bool doubletap;
+extern bool mediacontrol;
+extern bool sweeptolock;
+extern bool sweepkeyone;
+extern bool sweepkeytwo;
+extern bool sweepkeythree;
 extern int SKEY_ONE;
 extern int SKEY_TWO;
 extern int SKEY_THREE;
@@ -33,9 +33,8 @@ extern int deadzone;
 extern int key_trigger;
 extern bool force_locked;
 extern bool scr_suspended;
-extern int out_of_pocket(void);
-extern int in_pocket(void);
-extern short taos_get_proximity_value(void);
+extern void out_of_pocket(void);
+extern void in_pocket(void);
 
 #endif
 

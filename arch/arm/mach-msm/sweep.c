@@ -27,16 +27,18 @@
 #include <linux/module.h>
 #include <linux/input.h>
 
-int sweeptowake;
-int doubletap;
-int mediacontrol;
-int sweeptolock;
-int sweepkeyone;
-int sweepkeytwo;
-int sweepkeythree;
+bool sweeptowake;
+bool doubletap;
+bool mediacontrol;
+bool sweeptolock;
+bool sweepkeyone;
+bool sweepkeytwo;
+bool sweepkeythree;
 int SKEY_ONE;
+int S2KEY_ONE;
 int SKEY_TWO;
 int SKEY_THREE;
+int S2KEY_THREE;
 int wake_start;
 int wake_end;
 int area_start;
@@ -80,7 +82,7 @@ static ssize_t sweeptowake_store(struct kobject *kobj, struct kobj_attribute *at
 		return -EINVAL;
 	}
 
-	sweeptowake = input;
+	sweeptowake = (input = 1)?true:false;
 	return count;
 }
 static ssize_t doubletap_store(struct kobject *kobj, struct kobj_attribute *attr, const char *buf, size_t count)
@@ -94,7 +96,7 @@ static ssize_t doubletap_store(struct kobject *kobj, struct kobj_attribute *attr
 		return -EINVAL;
 	}
 
-	doubletap = input;
+	doubletap = (input = 1)?true:false;
 	return count;
 }
 static ssize_t mediacontrol_store(struct kobject *kobj, struct kobj_attribute *attr, const char *buf, size_t count)
@@ -108,7 +110,7 @@ static ssize_t mediacontrol_store(struct kobject *kobj, struct kobj_attribute *a
 		return -EINVAL;
 	}
 
-	mediacontrol = (doubletap==1)?input:0;
+	mediacontrol = (doubletap)?input:false;
 	return count;
 }
 static ssize_t sweeptolock_store(struct kobject *kobj, struct kobj_attribute *attr, const char *buf, size_t count)
@@ -122,7 +124,7 @@ static ssize_t sweeptolock_store(struct kobject *kobj, struct kobj_attribute *at
 		return -EINVAL;
 	}
 
-	sweeptolock = input;
+	sweeptolock = (input = 1)?true:false;
 	return count;
 }
 static ssize_t sweepkeyone_store(struct kobject *kobj, struct kobj_attribute *attr, const char *buf, size_t count)
@@ -136,7 +138,7 @@ static ssize_t sweepkeyone_store(struct kobject *kobj, struct kobj_attribute *at
 		return -EINVAL;
 	}
 
-	sweepkeyone = input;
+	sweepkeyone = (input = 1)?true:false;
 	return count;
 }
 static ssize_t sweepkeytwo_store(struct kobject *kobj, struct kobj_attribute *attr, const char *buf, size_t count)
@@ -150,7 +152,7 @@ static ssize_t sweepkeytwo_store(struct kobject *kobj, struct kobj_attribute *at
 		return -EINVAL;
 	}
 
-	sweepkeytwo = input;
+	sweepkeytwo = (input = 1)?true:false;
 	return count;
 }
 static ssize_t sweepkeythree_store(struct kobject *kobj, struct kobj_attribute *attr, const char *buf, size_t count)
@@ -164,7 +166,7 @@ static ssize_t sweepkeythree_store(struct kobject *kobj, struct kobj_attribute *
 		return -EINVAL;
 	}
 
-	sweepkeythree = input;
+	sweepkeythree = (input = 1)?true:false;
 	return count;
 }
 
@@ -308,13 +310,13 @@ static int __init sweep_init(void)
 {
 	int sweeptowake_retval;
 
-	sweeptowake = 1; /* Sweep2Wake enabled by default */
-	doubletap = 1; /* DoubleTap2Wake enabled by default */
-	mediacontrol = (doubletap==1)?1:0; /* DoubleTap2PlayPause enabled by default */
-	sweeptolock = 1; /* Sweep2lock enabled by default */
-	sweepkeyone = 1;
-	sweepkeytwo = 1;
-	sweepkeythree = 1;
+	sweeptowake = true; /* Sweep2Wake enabled by default */
+	doubletap = true; /* DoubleTap2Wake enabled by default */
+	mediacontrol = (doubletap==true)?true:false; /* DoubleTap2PlayPause enabled by default */
+	sweeptolock = true; /* Sweep2lock enabled by default */
+	sweepkeyone = true;
+	sweepkeytwo = true;
+	sweepkeythree = true;
 	SKEY_ONE = KEY_SCALE;
 	SKEY_TWO = KEY_HOME;
 	SKEY_THREE = KEY_BACK;

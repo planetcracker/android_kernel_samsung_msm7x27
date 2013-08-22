@@ -326,10 +326,8 @@ static void taos_work_func_prox(struct work_struct *work)
 	threshold_low= i2c_smbus_read_word_data(opt_i2c_client, (CMD_REG | PRX_MINTHRESHLO) );
 	if ( (threshold_high ==  (PRX_THRSH_HI_PARAM)) && (adc_data >=  (PRX_THRSH_HI_PARAM) ) )
 	{
-		printk("[HSS] [%s] +++ adc_data=[%d], threshold_high=[%d],  threshold_min=[%d]\n", __func__, adc_data, threshold_high, threshold_low);
 		proximity_value = 1;
-		if (scr_suspended)
-			in_pocket();
+
 		prox_int_thresh[0] = (PRX_THRSH_LO_PARAM) & 0xFF;
 		prox_int_thresh[1] = (PRX_THRSH_LO_PARAM >> 8) & 0xFF;
 		prox_int_thresh[2] = (0xFFFF) & 0xFF;
@@ -338,14 +336,16 @@ static void taos_work_func_prox(struct work_struct *work)
 		{
 			opt_i2c_write((CMD_REG|(PRX_MINTHRESHLO + i)),&prox_int_thresh[i]);
 		}
+
+		if (scr_suspended) {
+			in_pocket();
+			acpuclk_set_rate(0, 19200, SETRATE_PC);
+		}
 	}
 	else if ( (threshold_high ==  (0xFFFF)) && (adc_data <=  (PRX_THRSH_LO_PARAM) ) )
 	{
-		printk("[HSS] [%s] --- adc_data=[%d], threshold_high=[%d],  threshold_min=[%d]\n", __func__, adc_data, threshold_high, threshold_low);
 		proximity_value = 0;
-		acpuclk_set_rate(0, 604800, SETRATE_CPUFREQ);
-		if (scr_suspended)
-			out_of_pocket();
+
 		prox_int_thresh[0] = (0x0000) & 0xFF;
 		prox_int_thresh[1] = (0x0000 >> 8) & 0xFF;
 		prox_int_thresh[2] = (PRX_THRSH_HI_PARAM) & 0xFF;
@@ -353,6 +353,11 @@ static void taos_work_func_prox(struct work_struct *work)
 		for (i = 0; i < 4; i++)
 		{
 			opt_i2c_write((CMD_REG|(PRX_MINTHRESHLO + i)),&prox_int_thresh[i]);
+		}
+
+		if (scr_suspended) {
+			acpuclk_set_rate(0, 604800, SETRATE_CPUFREQ);
+			out_of_pocket();
 		}
 	}
     else
