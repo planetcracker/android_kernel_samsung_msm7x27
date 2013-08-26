@@ -21,6 +21,7 @@ extern int doubletap;
 extern int mediacontrol;
 extern int sweeptolock;
 extern int sweepkeyone;
+extern int sweepformenu;
 extern int sweepkeytwo;
 extern int sweepkeythree;
 extern int SKEY_ONE;

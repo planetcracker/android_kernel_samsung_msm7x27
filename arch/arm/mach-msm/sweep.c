@@ -32,6 +32,7 @@ int pocket_keyguard;
 int doubletap;
 int mediacontrol;
 int sweeptolock;
+int sweepformenu;
 int sweepkeyone;
 int sweepkeytwo;
 int sweepkeythree;
@@ -63,6 +64,7 @@ show_one(pocket_keyguard, pocket_keyguard);
 show_one(doubletap, doubletap);
 show_one(mediacontrol, mediacontrol);
 show_one(sweeptolock, sweeptolock);
+show_one(sweepformenu, sweepformenu);
 show_one(sweepkeyone, sweepkeyone);
 show_one(sweepkeytwo, sweepkeytwo);
 show_one(sweepkeythree, sweepkeythree);
@@ -149,6 +151,19 @@ static ssize_t sweepkeyone_store(struct kobject *kobj, struct kobj_attribute *at
 	}
 
 	sweepkeyone = input;
+	return count;
+}
+static ssize_t sweepformenu_store(struct kobject *kobj, struct kobj_attribute *attr, const char *buf, size_t count)
+{
+	int input;
+	int ret;
+	ret = sscanf(buf, "%d", &input);
+
+	if (ret != 1 || input > 1 || input < 0) {
+		return -EINVAL;
+	}
+
+	sweepformenu = input;
 	return count;
 }
 static ssize_t sweepkeytwo_store(struct kobject *kobj, struct kobj_attribute *attr, const char *buf, size_t count)
@@ -282,6 +297,7 @@ define_kobj_rw_attr(doubletap);
 define_kobj_rw_attr(mediacontrol);
 define_kobj_rw_attr(sweeptolock);
 define_kobj_rw_attr(sweepkeyone);
+define_kobj_rw_attr(sweepformenu);
 define_kobj_rw_attr(sweepkeytwo);
 define_kobj_rw_attr(sweepkeythree);
 define_kobj_rw_attr(keycode_one);
@@ -298,6 +314,7 @@ static struct attribute *sweeptowake_attrs[] = {
 &mediacontrol_attribute.attr,
 &sweeptolock_attribute.attr,
 &sweepkeyone_attribute.attr,
+&sweepformenu_attribute.attr,
 &sweepkeytwo_attribute.attr,
 &sweepkeythree_attribute.attr,
 &keycode_one_attribute.attr,
@@ -326,6 +343,7 @@ static int __init sweep_init(void)
 	mediacontrol = (doubletap)?1:0; /* DoubleTap2PlayPause enabled by default */
 	sweeptolock = 1; /* Sweep2lock enabled by default */
 	sweepkeyone = 1;
+	sweepformenu = 1;
 	sweepkeytwo = 1;
 	sweepkeythree = 1;
 	SKEY_ONE = KEY_SCALE;

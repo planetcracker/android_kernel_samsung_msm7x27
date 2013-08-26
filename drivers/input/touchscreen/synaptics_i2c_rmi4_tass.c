@@ -228,6 +228,22 @@ static inline void sweep2wake_pwrtrigger(unsigned int cmd) {
 			}
 			break;
 
+		case 7:
+			{
+				keysent = true;
+				input_event(sweep_pwrdev, EV_KEY, KEY_MENU, 1);
+				input_event(sweep_pwrdev, EV_SYN, 0, 0);
+				msleep(40);
+				input_event(sweep_pwrdev, EV_KEY, KEY_MENU, 0);
+				input_event(sweep_pwrdev, EV_SYN, 0, 0);
+				trigger = false;
+				prevy = 320;
+				msleep(40);
+				mutex_unlock(&pwrlock);
+			}
+			break;
+
+
 		default:
 			{
 				mutex_unlock(&pwrlock);
@@ -540,7 +556,9 @@ static void synaptics_ts_work_func(struct work_struct *work)
 				if (fingerInfo[i].y < prevy) {
 						prevy = fingerInfo[i].y;
 						if (fingerInfo[i].y < key_trigger) {
-							if (sweepkeyone && fingerInfo[i].x < 80 && fingerInfo[i].x >= 0) 
+							if (sweepformenu && fingerInfo[i].x < 30 && fingerInfo[i].x >= 0) 
+								sweep2wake_pwrtrigger(7);
+							if (sweepkeyone && fingerInfo[i].x < 80 && fingerInfo[i].x >= 30) 
 								sweep2wake_pwrtrigger(3);
 							if (sweepkeytwo && fingerInfo[i].x < 160 && fingerInfo[i].x >= 80) 
 								sweep2wake_pwrtrigger(4);
