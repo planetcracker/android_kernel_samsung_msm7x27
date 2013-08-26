@@ -37,6 +37,8 @@
 #include <linux/input.h>
 #include <linux/workqueue.h>
 #include <linux/slab.h>
+#include <linux/sweep.h>
+#include "../../arch/arm/mach-msm/acpuclock.h"
 
 
 /******************** Tunable parameters: ********************/
@@ -68,21 +70,25 @@ static unsigned int ramp_up_step;
 /*
  * CPU freq will be increased if measured load > dynamics_thd;
  */
-#define DEFAULT_DYNAMICS_THRESHOLD 95
-static unsigned long dynamics_thd;
-static unsigned long old_load;
+#define DEFAULT_PERFORMANCE_BIAS 4
+static unsigned short perf_bias;
+static unsigned short dynamics_thd;
+static unsigned short old_load;
+
+#define DEFAULT_SLEEP_THRESHOLD 75
+static unsigned short sleep_thd;
 
 /*
  * CPU freq will be decreased if measured load < min_cpu_load;
  */
-static unsigned long min_cpu_load;
+static unsigned short min_cpu_load;
 
 /*
  * The minimum amount of time to spend at a frequency before we can ramp up.
  * Notice we ignore this when we are below the ideal frequency.
  */
 #define DEFAULT_UP_RATE_US 31000;
-static unsigned long up_rate_us;
+static unsigned short up_rate_us;
 
 /*
  * Sampling rate, I highly recommend to leave it at 2.
@@ -136,9 +142,6 @@ static unsigned int suspended;
 static int cpufreq_governor_zen(struct cpufreq_policy *policy,
 		unsigned int event);
 
-#ifndef CONFIG_CPU_FREQ_DEFAULT_GOV_ZEN
-static
-#endif
 struct cpufreq_governor cpufreq_gov_zen = {
 	.name = "Zen",
 	.governor = cpufreq_governor_zen,
@@ -180,6 +183,7 @@ inline static void zen_dynamics_awake(struct zen_info_s *this_zen, struct cpufre
 }
 
 inline static void zen_dynamics_update(void) {
+	dynamics_thd = 100-perf_bias;
 	min_cpu_load = dynamics_thd - 25;
 	ramp_up_step = 28000*(102-dynamics_thd);
 }
@@ -258,6 +262,17 @@ inline static int target_freq(struct cpufreq_policy *policy, struct zen_info_s *
 	return target;
 }
 
+inline void zen_sleep(void)
+{
+	struct zen_info_s *this_zen = &per_cpu(zen_info, 0);
+	
+	if (this_zen->cur_cpu_load < sleep_thd)
+		acpuclk_set_rate(0, 19200, SETRATE_PC);
+	else
+		acpuclk_set_rate(0, 96000, SETRATE_SWFI);
+}
+EXPORT_SYMBOL(zen_sleep);
+
 static void cpufreq_zen_timer(unsigned long cpu)
 {
 	u64 delta_idle;
@@ -296,7 +311,7 @@ static void cpufreq_zen_timer(unsigned long cpu)
 	  if (touch && cpu_load < touch_load &&
 	      cpu_load > touch_load_threshold)
 		    cpu_load = touch_load;
-
+	
 	this_zen->cur_cpu_load = cpu_load;
 	this_zen->old_freq = old_freq;
 
@@ -430,7 +445,7 @@ static void cpufreq_zen_freq_change_time_work(struct work_struct *work)
 
 static ssize_t show_up_rate_us(struct kobject *kobj, struct attribute *attr, char *buf)
 {
-	return sprintf(buf, "%lu\n", up_rate_us);
+	return sprintf(buf, "%u\n", up_rate_us);
 }
 
 static ssize_t store_up_rate_us(struct kobject *kobj, struct attribute *attr, const char *buf, size_t count)
@@ -551,7 +566,7 @@ static ssize_t store_ramp_up_step(struct kobject *kobj, struct attribute *attr, 
 
 static ssize_t show_dynamics_thd(struct kobject *kobj, struct attribute *attr, char *buf)
 {
-	return sprintf(buf, "%lu\n", dynamics_thd);
+	return sprintf(buf, "%u\n", dynamics_thd);
 }
 
 static ssize_t store_dynamics_thd(struct kobject *kobj, struct attribute *attr, const char *buf, size_t count)
@@ -568,9 +583,46 @@ static ssize_t store_dynamics_thd(struct kobject *kobj, struct attribute *attr, 
 	return count;
 }
 
+static ssize_t show_perf_bias(struct kobject *kobj, struct attribute *attr, char *buf)
+{
+	return sprintf(buf, "%u\n", perf_bias);
+}
+
+static ssize_t store_perf_bias(struct kobject *kobj, struct attribute *attr, const char *buf, size_t count)
+{
+	ssize_t res;
+	unsigned long input;
+	res = strict_strtoul(buf, 0, &input);
+	if (res < 0)
+		return -EINVAL;
+	if (input > 0 && input <= 15) {
+		perf_bias = input;
+		zen_dynamics_update();
+	}
+	return count;
+}
+
+static ssize_t show_sleep_thd(struct kobject *kobj, struct attribute *attr, char *buf)
+{
+	return sprintf(buf, "%u\n", sleep_thd);
+}
+
+static ssize_t store_sleep_thd(struct kobject *kobj, struct attribute *attr, const char *buf, size_t count)
+{
+	ssize_t res;
+	unsigned long input;
+	res = strict_strtoul(buf, 0, &input);
+	if (res < 0)
+		return -EINVAL;
+	if (input > 0 && input <= 100) {
+		sleep_thd = input;
+	}
+	return count;
+}
+
 static ssize_t show_min_cpu_load(struct kobject *kobj, struct attribute *attr, char *buf)
 {
-	return sprintf(buf, "%lu\n", min_cpu_load);
+	return sprintf(buf, "%u\n", min_cpu_load);
 }
 
 static ssize_t store_min_cpu_load(struct kobject *kobj, struct attribute *attr, const char *buf, size_t count)
@@ -601,7 +653,9 @@ define_global_rw_attr(ideal_step_three);
 define_global_rw_attr(ideal_step_four);
 define_global_ro_attr(sample_rate_jiffies);
 define_global_ro_attr(ramp_up_step);
-define_global_rw_attr(dynamics_thd);
+define_global_ro_attr(dynamics_thd);
+define_global_rw_attr(perf_bias);
+define_global_rw_attr(sleep_thd);
 define_global_ro_attr(min_cpu_load);
 
 static struct attribute * zen_attributes[] = {
@@ -613,6 +667,8 @@ static struct attribute * zen_attributes[] = {
 	&sample_rate_jiffies_attr.attr,
 	&ramp_up_step_attr.attr,
 	&dynamics_thd_attr.attr,
+	&perf_bias_attr.attr,
+	&sleep_thd_attr.attr,
 	&min_cpu_load_attr.attr,
 	NULL,
 };
@@ -830,7 +886,7 @@ static struct early_suspend zen_power_suspend = {
 #endif
 };
 
-static int __init cpufreq_zen_init(void)
+static int __init cpufreq_gov_zen_init(void)
 {
 	unsigned int i;
 	struct zen_info_s *this_zen;
@@ -840,8 +896,10 @@ static int __init cpufreq_zen_init(void)
 	ideal_step_three = DEFAULT_IDEAL_STEP_THREE;
 	ideal_step_four = DEFAULT_IDEAL_STEP_FOUR;
 	sample_rate_jiffies = DEFAULT_SAMPLE_RATE_JIFFIES;
-	dynamics_thd = DEFAULT_DYNAMICS_THRESHOLD;
-	old_load = DEFAULT_DYNAMICS_THRESHOLD;
+	perf_bias = DEFAULT_PERFORMANCE_BIAS;
+	dynamics_thd = 100-perf_bias;
+	sleep_thd = DEFAULT_SLEEP_THRESHOLD;
+	old_load = 100-perf_bias;
 	ramp_up_step = 28000*(102-dynamics_thd);
 	min_cpu_load = dynamics_thd-25;
 	touch_load_duration = TOUCH_LOAD_DURATION;
@@ -887,12 +945,12 @@ static int __init cpufreq_zen_init(void)
 }
 
 #ifdef CONFIG_CPU_FREQ_DEFAULT_GOV_ZEN
-fs_initcall(cpufreq_zen_init);
+fs_initcall(cpufreq_gov_zen_init);
 #else
-module_init(cpufreq_zen_init);
+module_init(cpufreq_gov_zen_init);
 #endif
 
-static void __exit cpufreq_zen_exit(void)
+static void __exit cpufreq_gov_zen_exit(void)
 {
 	del_timer_sync(&touchpulse);
 	cpufreq_unregister_governor(&cpufreq_gov_zen);
@@ -900,7 +958,7 @@ static void __exit cpufreq_zen_exit(void)
 	destroy_workqueue(down_wq);
 }
 
-module_exit(cpufreq_zen_exit);
+module_exit(cpufreq_gov_zen_exit);
 
 MODULE_AUTHOR ("Alin");
 MODULE_DESCRIPTION ("'cpufreq_zen' - A dynamic SmartassV2 based cpufreq governor");

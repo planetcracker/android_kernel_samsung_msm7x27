@@ -937,6 +937,8 @@ static struct attribute_group acc_attribute_group = {
 static void bma_work_func_acc(struct work_struct *work)
 {
 	bma222acc_t acc;
+
+	bma222_read_accel_xyz(&acc);
 		
 	
 //	printk("##### %d,  %d,  %d\n", acc.x, acc.y, acc.z );
@@ -1243,15 +1245,11 @@ static int bma_resume(struct i2c_client *client)
 #ifdef CONFIG_HAS_EARLYSUSPEND
 static void bma_early_suspend(struct early_suspend *h)
 {
-	struct bma_data *data;
-	data = container_of(h, struct bma_data, early_suspend);
 	bma_suspend(bma_client,PMSG_SUSPEND);
 }
 
 static void bma_late_resume(struct early_suspend *h)
 {
-	struct bma_data *data;
-	data = container_of(h, struct bma_data, early_suspend);
 	bma_resume(bma_client);
 }
 #endif

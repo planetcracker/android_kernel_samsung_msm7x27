@@ -425,7 +425,7 @@ unsigned long acpuclk_power_collapse(void)
 	return ret;
 }
 
-#define WAIT_FOR_IRQ_KHZ 128000
+#define WAIT_FOR_IRQ_KHZ 96000
 unsigned long acpuclk_wait_for_irq(void)
 {
 	int ret = acpuclk_get_rate(smp_processor_id());

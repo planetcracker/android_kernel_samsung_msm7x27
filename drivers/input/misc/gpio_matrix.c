@@ -230,7 +230,16 @@ static void report_key(struct gpio_kp *kp, int key_index, int out, int in)
 				else
 				{	
 #endif
+	if (pocket_keyguard) {
+		if (keycode == KEY_HOME || keycode == KEY_END) {
+			if (!scr_suspended || !covered)
+				input_report_key(kp->input_devs->dev[dev], keycode, pressed);
+		} else {
 			input_report_key(kp->input_devs->dev[dev], keycode, pressed);
+		}
+	} else {
+		input_report_key(kp->input_devs->dev[dev], keycode, pressed);
+	}
 #if defined(CONFIG_MACH_COOPER) || defined(CONFIG_MACH_BENI) || defined(CONFIG_MACH_TASS) || defined(CONFIG_MACH_TASSDT) || defined(CONFIG_MACH_GIO)
 				if(keycode == KEY_HOME && pressed == 1)
 					TSP_forced_release_forkey();
@@ -382,6 +391,9 @@ static irqreturn_t gpiokey_irq_handler(int irq_in, void *dev_id)
 	unsigned short dev = keyentry >> MATRIX_CODE_BITS;
 	static cputime64_t tap[2] = {0};
 
+if (pocket_keyguard && scr_suspended && covered) {
+		return IRQ_HANDLED;
+} else {
 	key_status = gpio_get_value(GPIO_POWERKEY);
 
 	if(!power_off_done) {
@@ -422,6 +434,7 @@ static irqreturn_t gpiokey_irq_handler(int irq_in, void *dev_id)
 		printk("power_off_done : %d\n", power_off_done);
 
 	return IRQ_HANDLED;
+}
 
 }
 

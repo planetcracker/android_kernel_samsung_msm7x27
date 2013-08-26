@@ -27,13 +27,14 @@
 #include <linux/module.h>
 #include <linux/input.h>
 
-bool sweeptowake;
-bool doubletap;
-bool mediacontrol;
-bool sweeptolock;
-bool sweepkeyone;
-bool sweepkeytwo;
-bool sweepkeythree;
+int sweeptowake;
+int pocket_keyguard;
+int doubletap;
+int mediacontrol;
+int sweeptolock;
+int sweepkeyone;
+int sweepkeytwo;
+int sweepkeythree;
 int SKEY_ONE;
 int S2KEY_ONE;
 int SKEY_TWO;
@@ -58,6 +59,7 @@ static ssize_t show_##file_name						\
 }
 
 show_one(sweeptowake, sweeptowake);
+show_one(pocket_keyguard, pocket_keyguard);
 show_one(doubletap, doubletap);
 show_one(mediacontrol, mediacontrol);
 show_one(sweeptolock, sweeptolock);
@@ -73,100 +75,106 @@ show_one(deadzone_px, deadzone_px);
 
 static ssize_t sweeptowake_store(struct kobject *kobj, struct kobj_attribute *attr, const char *buf, size_t count)
 {
-	unsigned int input;
+	int input;
 	int ret;
-	ret = sscanf(buf, "%du", &input);
+	ret = sscanf(buf, "%d", &input);
 
-	if (ret != 1 || input > 1 ||
-			input < 0) {
+	if (ret != 1 || input > 1 || input < 0) {
 		return -EINVAL;
 	}
 
-	sweeptowake = (input = 1)?true:false;
+	sweeptowake = input;
+	return count;
+}
+static ssize_t pocket_keyguard_store(struct kobject *kobj, struct kobj_attribute *attr, const char *buf, size_t count)
+{
+	int input;
+	int ret;
+	ret = sscanf(buf, "%d", &input);
+
+	if (ret != 1 || input > 1 || input < 0) {
+		return -EINVAL;
+	}
+
+	pocket_keyguard = input;
 	return count;
 }
 static ssize_t doubletap_store(struct kobject *kobj, struct kobj_attribute *attr, const char *buf, size_t count)
 {
-	unsigned int input;
+	int input;
 	int ret;
-	ret = sscanf(buf, "%du", &input);
+	ret = sscanf(buf, "%d", &input);
 
-	if (ret != 1 || input > 1 ||
-			input < 0) {
+	if (ret != 1 || input > 1 || input < 0) {
 		return -EINVAL;
 	}
 
-	doubletap = (input = 1)?true:false;
+	doubletap = input;
 	return count;
 }
 static ssize_t mediacontrol_store(struct kobject *kobj, struct kobj_attribute *attr, const char *buf, size_t count)
 {
-	unsigned int input;
+	int input;
 	int ret;
-	ret = sscanf(buf, "%du", &input);
+	ret = sscanf(buf, "%d", &input);
 
-	if (ret != 1 || input > 1 ||
-			input < 0) {
+	if (ret != 1 || input > 1 || input < 0) {
 		return -EINVAL;
 	}
 
-	mediacontrol = (doubletap)?input:false;
+	mediacontrol = (doubletap)?input:0;
 	return count;
 }
 static ssize_t sweeptolock_store(struct kobject *kobj, struct kobj_attribute *attr, const char *buf, size_t count)
 {
-	unsigned int input;
+	int input;
 	int ret;
-	ret = sscanf(buf, "%du", &input);
+	ret = sscanf(buf, "%d", &input);
 
-	if (ret != 1 || input > 1 ||
-			input < 0) {
+	if (ret != 1 || input > 1 || input < 0) {
 		return -EINVAL;
 	}
 
-	sweeptolock = (input = 1)?true:false;
+	sweeptolock = input;
 	return count;
 }
 static ssize_t sweepkeyone_store(struct kobject *kobj, struct kobj_attribute *attr, const char *buf, size_t count)
 {
-	unsigned int input;
+	int input;
 	int ret;
-	ret = sscanf(buf, "%du", &input);
+	ret = sscanf(buf, "%d", &input);
 
-	if (ret != 1 || input > 1 ||
-			input < 0) {
+	if (ret != 1 || input > 1 || input < 0) {
 		return -EINVAL;
 	}
 
-	sweepkeyone = (input = 1)?true:false;
+	sweepkeyone = input;
 	return count;
 }
 static ssize_t sweepkeytwo_store(struct kobject *kobj, struct kobj_attribute *attr, const char *buf, size_t count)
 {
-	unsigned int input;
+	int input;
 	int ret;
-	ret = sscanf(buf, "%du", &input);
+	ret = sscanf(buf, "%d", &input);
 
-	if (ret != 1 || input > 1 ||
-			input < 0) {
+	if (ret != 1 || input > 1 || input < 0) {
 		return -EINVAL;
 	}
 
-	sweepkeytwo = (input = 1)?true:false;
+	sweepkeytwo = input;
 	return count;
 }
 static ssize_t sweepkeythree_store(struct kobject *kobj, struct kobj_attribute *attr, const char *buf, size_t count)
 {
-	unsigned int input;
+	int input;
 	int ret;
-	ret = sscanf(buf, "%du", &input);
+	ret = sscanf(buf, "%d", &input);
 
-	if (ret != 1 || input > 1 ||
-			input < 0) {
+	if (ret != 1 || input > 1 || input < 0) {
 		return -EINVAL;
 	}
 
-	sweepkeythree = (input = 1)?true:false;
+	sweepkeythree = input;
 	return count;
 }
 
@@ -176,7 +184,7 @@ static ssize_t keycode_one_store(struct kobject *kobj, struct kobj_attribute *at
 	int ret;
 	ret = sscanf(buf, "%du", &input);
 
-	if (ret != 1 || input > 247 ||
+	if (ret < 1 || input > 247 ||
 			input < 0) {
 		return -EINVAL;
 	}
@@ -190,7 +198,7 @@ static ssize_t keycode_two_store(struct kobject *kobj, struct kobj_attribute *at
 	int ret;
 	ret = sscanf(buf, "%du", &input);
 
-	if (ret != 1 || input > 247 ||
+	if (ret < 1 || input > 247 ||
 			input < 0) {
 		return -EINVAL;
 	}
@@ -204,7 +212,7 @@ static ssize_t keycode_three_store(struct kobject *kobj, struct kobj_attribute *
 	int ret;
 	ret = sscanf(buf, "%du", &input);
 
-	if (ret != 1 || input > 247 ||
+	if (ret < 1 || input > 247 ||
 			input < 0) {
 		return -EINVAL;
 	}
@@ -218,7 +226,7 @@ static ssize_t wake_sens_factor_store(struct kobject *kobj, struct kobj_attribut
 	int ret;
 	ret = sscanf(buf, "%du", &input);
 
-	if (ret != 1 || input > 8 ||
+	if (ret < 1 || input > 8 ||
 			input < 1) {
 		return -EINVAL;
 	}
@@ -237,7 +245,7 @@ static ssize_t key_sens_factor_store(struct kobject *kobj, struct kobj_attribute
 	int ret;
 	ret = sscanf(buf, "%du", &input);
 
-	if (ret != 1 || input > 9 ||
+	if (ret < 1 || input > 9 ||
 			input < 1) {
 		return -EINVAL;
 	}
@@ -253,7 +261,7 @@ static ssize_t deadzone_px_store(struct kobject *kobj, struct kobj_attribute *at
 	int ret;
 	ret = sscanf(buf, "%du", &input);
 
-	if (ret != 1 || input > 20 ||
+	if (ret < 1 || input > 20 ||
 			input < 1) {
 		return -EINVAL;
 	}
@@ -269,6 +277,7 @@ static struct kobj_attribute _name##_attribute =	\
 	__ATTR(_name, 0666, show_##_name, _name##_store)
 
 define_kobj_rw_attr(sweeptowake);
+define_kobj_rw_attr(pocket_keyguard);
 define_kobj_rw_attr(doubletap);
 define_kobj_rw_attr(mediacontrol);
 define_kobj_rw_attr(sweeptolock);
@@ -284,6 +293,7 @@ define_kobj_rw_attr(deadzone_px);
 
 static struct attribute *sweeptowake_attrs[] = {
 &sweeptowake_attribute.attr,
+&pocket_keyguard_attribute.attr,
 &doubletap_attribute.attr,
 &mediacontrol_attribute.attr,
 &sweeptolock_attribute.attr,
@@ -310,13 +320,14 @@ static int __init sweep_init(void)
 {
 	int sweeptowake_retval;
 
-	sweeptowake = true; /* Sweep2Wake enabled by default */
-	doubletap = true; /* DoubleTap2Wake enabled by default */
-	mediacontrol = (doubletap==true)?true:false; /* DoubleTap2PlayPause enabled by default */
-	sweeptolock = true; /* Sweep2lock enabled by default */
-	sweepkeyone = true;
-	sweepkeytwo = true;
-	sweepkeythree = true;
+	sweeptowake = 1; /* Sweep2Wake enabled by default */
+	pocket_keyguard = 1; /* Pocket Keyguard enabled by default */
+	doubletap = 1; /* DoubleTap2Wake enabled by default */
+	mediacontrol = (doubletap)?1:0; /* DoubleTap2PlayPause enabled by default */
+	sweeptolock = 1; /* Sweep2lock enabled by default */
+	sweepkeyone = 1;
+	sweepkeytwo = 1;
+	sweepkeythree = 1;
 	SKEY_ONE = KEY_SCALE;
 	SKEY_TWO = KEY_HOME;
 	SKEY_THREE = KEY_BACK;

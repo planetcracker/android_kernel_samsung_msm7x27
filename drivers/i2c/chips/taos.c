@@ -27,6 +27,7 @@
 #include <linux/wakelock.h>
 #include <linux/sweep.h>
 #include <mach/vreg.h>
+#include <linux/mutex.h>
 
 #include "taos.h"
 #include "../../../arch/arm/mach-msm/acpuclock.h"
@@ -169,10 +170,9 @@ struct class *proxsensor_class;
 struct device *switch_cmd_dev;
 
 static bool proximity_enable = 1;
-
 static short proximity_value = 0;
-
 static bool forced = 0;
+bool covered = false;
 
 static struct wake_lock prx_wake_lock;
 
@@ -187,6 +187,8 @@ static ktime_t timeSub;
 static void taos_early_suspend(struct early_suspend *h);
 static void taos_late_resume(struct early_suspend *h);
 #endif
+
+static DEFINE_MUTEX(prossimo_lock);
 
 extern int board_hw_revision;
 
@@ -326,7 +328,9 @@ static void taos_work_func_prox(struct work_struct *work)
 	threshold_low= i2c_smbus_read_word_data(opt_i2c_client, (CMD_REG | PRX_MINTHRESHLO) );
 	if ( (threshold_high ==  (PRX_THRSH_HI_PARAM)) && (adc_data >=  (PRX_THRSH_HI_PARAM) ) )
 	{
+		mutex_lock(&prossimo_lock);
 		proximity_value = 1;
+		covered = true;
 
 		prox_int_thresh[0] = (PRX_THRSH_LO_PARAM) & 0xFF;
 		prox_int_thresh[1] = (PRX_THRSH_LO_PARAM >> 8) & 0xFF;
@@ -339,12 +343,15 @@ static void taos_work_func_prox(struct work_struct *work)
 
 		if (scr_suspended) {
 			in_pocket();
-			acpuclk_set_rate(0, 19200, SETRATE_PC);
+			zen_sleep();
 		}
+		mutex_unlock(&prossimo_lock);
 	}
 	else if ( (threshold_high ==  (0xFFFF)) && (adc_data <=  (PRX_THRSH_LO_PARAM) ) )
 	{
+		mutex_lock(&prossimo_lock);
 		proximity_value = 0;
+		covered = false;
 
 		prox_int_thresh[0] = (0x0000) & 0xFF;
 		prox_int_thresh[1] = (0x0000 >> 8) & 0xFF;
@@ -359,6 +366,7 @@ static void taos_work_func_prox(struct work_struct *work)
 			acpuclk_set_rate(0, 604800, SETRATE_CPUFREQ);
 			out_of_pocket();
 		}
+		mutex_unlock(&prossimo_lock);
 	}
     else
     {
