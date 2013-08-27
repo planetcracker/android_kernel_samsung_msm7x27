@@ -36,11 +36,20 @@
 /* firmware - update */
 #include <linux/firmware.h>
 /* firmware - update */
+#if defined(CONFIG_MACH_TASS)
+
 #define Digi_HEX_HW_VER	0x01
 #define Digi_HEX_SW_VER 0x0C
 
 #define SMAC_HEX_HW_VER 0x11
 #define SMAC_HEX_SW_VER	0x07	//change the version while Firmware Update 
+
+#elif defined(CONFIG_MACH_BENI)
+
+#define HEX_HW_VER	0x04 
+#define HEX_SW_VER	0x0A 
+
+#endif
 
 #define MAX_X	240//320 
 #define MAX_Y	320//480 
@@ -52,6 +61,20 @@
 
 static int prev_wdog_val = -1;
 static int i2c_error_cnt = 0;
+
+#if defined(CONFIG_MACH_BENI)
+
+static const int touchkey_keycodes[] = {
+	KEY_MENU,
+	KEY_BACK,
+};
+
+static int touchkey_status[MAX_KEYS];
+
+#define TK_STATUS_PRESS		1
+#define TK_STATUS_RELEASE		0
+
+#endif
 
 static struct workqueue_struct *synaptics_wq;
 
@@ -259,9 +282,18 @@ static inline void sweep2wake_pwrtrigger(unsigned int cmd) {
 int tsp_reset( void )
 {
 	int ret = 1; 
+#ifdef CONFIG_MACH_BENI
+	int key = 0;
+#endif
 	struct vreg *vreg_touch;
 
 	vreg_touch = vreg_get(NULL, "ldo6");
+
+#ifdef CONFIG_MACH_BENI
+	// for TSK
+	for(key = 0; key < MAX_KEYS ; key++)
+		touchkey_status[key] = TK_STATUS_RELEASE;
+#endif
 
 #if 0
 	if (ts_global->use_irq)
@@ -315,6 +347,39 @@ tsp_reset_out:
 
 	return ret;
 }
+
+#ifdef CONFIG_MACH_BENI
+static void process_key_event(uint8_t tsk_msg)
+{
+	int i;
+	int keycode= 0;
+	int st_old, st_new;
+
+	//check each key status
+	for(i = 0; i < MAX_KEYS; i++)
+	{
+		st_old = touchkey_status[i];
+		st_new = (tsk_msg>>(i+6)) & 0x1;
+		keycode = touchkey_keycodes[i];
+
+		touchkey_status[i] = st_new;	// save status
+
+		if(st_new > st_old)
+		{
+			// press event
+			printk("[TSP] press keycode: %4d, keypress: %4d\n", keycode, 1);
+			input_report_key(ts_global->input_dev, keycode, 1);
+		}
+		else if(st_old > st_new)
+		{
+			// release event
+			printk("[TSP] release keycode: %4d, keypress: %4d\n", keycode, 0);
+			input_report_key(ts_global->input_dev, keycode, 0);
+		}
+	}
+
+}
+#endif
 
 void TSP_forced_release_forkey(void)
 {
@@ -372,6 +437,11 @@ static void synaptics_ts_work_func(struct work_struct *work)
 	fingerInfo[1].z = buf[11]/2;
 	fingerInfo[1].id = buf[6] & 0x0f;
 
+#ifdef CONFIG_MACH_BENI
+	/* check key event*/
+	if(fingerInfo[0].status != 1 && fingerInfo[1].status != 1)	
+		process_key_event(buf[0]);
+#endif
 
 	/* check touch event */
 	for ( i= 0; i<MAX_USING_FINGER_NUM; i++ )
@@ -664,6 +734,9 @@ static int synaptics_ts_probe(
 {
 	struct synaptics_ts_data *ts;
 	int ret = 0;
+#ifdef CONFIG_MACH_BENI
+	int key = 0;
+#endif
 	struct vreg *vreg_touch;
 	uint8_t i2c_addr = 0x1B;
 	uint8_t buf_tmp[3]={0,};
@@ -715,6 +788,15 @@ static int synaptics_ts_probe(
 	input_set_abs_params(ts->input_dev, ABS_MT_POSITION_Y, 0, MAX_Y, 0, 0);	//0, MAX_Y, 0, 0
 	input_set_abs_params(ts->input_dev, ABS_MT_TOUCH_MAJOR, 0, 255, 0, 0);
 	input_set_abs_params(ts->input_dev, ABS_MT_WIDTH_MAJOR, 0, 255, 0, 0);
+
+#ifdef CONFIG_MACH_BENI
+	for(key = 0; key < MAX_KEYS ; key++)
+		input_set_capability(ts->input_dev, EV_KEY, touchkey_keycodes[key]);
+
+	// for TSK
+	for(key = 0; key < MAX_KEYS ; key++)
+		touchkey_status[key] = TK_STATUS_RELEASE;
+#endif
 
 	/* ts->input_dev->name = ts->keypad_info->name; */
 	ret = input_register_device(ts->input_dev);
@@ -884,6 +966,12 @@ static void ts_resume_work_func(struct work_struct *ignored)
 	int ret, retry_count;
 	uint8_t i2c_addr = 0x1D;
 	uint8_t buf[1];
+
+#ifdef CONFIG_MACH_BENI
+	// for TSK
+	for(key = 0; key < MAX_KEYS; key++)
+		touchkey_status[key] = TK_STATUS_RELEASE;
+#endif
 
 	retry_count = 0;
 
@@ -1108,7 +1196,7 @@ static ssize_t firmware_show(struct device *dev, struct device_attribute *attr, 
 	SW_ver = buf_show[1];
 
 
-
+#if defined(CONFIG_MACH_TASS)
 	if ( HW_ver == 0x01  || HW_ver == 0x02 )
 	{
 		/* for Digitech */
@@ -1125,7 +1213,20 @@ static ssize_t firmware_show(struct device *dev, struct device_attribute *attr, 
 		phone_ver = 0;
 
 	}
-
+#elif defined(CONFIG_MACH_BENI)
+	if ( HW_ver == 0x04 )
+	{
+		phone_ver = HEX_SW_VER;
+	}
+	else if ( HW_ver == 0x03 )
+	{
+		phone_ver = 3;  	
+	}
+	else if ( HW_ver == 0x02 )
+	{
+		phone_ver = 2;	
+	}
+#endif
 	/* below protocol is defined with App. ( juhwan.jeong@samsung.com )
 	   The TSP Driver report like XY as decimal.
 	   The X is the Firmware version what phone has.
@@ -1177,9 +1278,22 @@ int firm_update( void )
 	cancel_delayed_work_sync(&ts_global->work_check_ic);
 
 	//gpio_configure( TSP_SCL, GPIOF_DRIVE_OUTPUT );
-
+#if defined(CONFIG_MACH_TASS)
 	firmware_ret_val = cypress_update( ((HW_ver+1)/10)+1 );
-
+#elif defined(CONFIG_MACH_BENI)
+	if ( HW_ver==0x04 )
+	{
+		firmware_ret_val = cypress_update ( 1 );
+	}
+	else if ( HW_ver==0x02 || HW_ver==0x03 )
+	{
+		firmware_ret_val = cypress_update( HW_ver );
+	}
+	else	
+	{
+		firmware_ret_val = cypress_update( 1 );	//temporary firmware update
+	}
+#endif
 	msleep(1000);
 
 	//gpio_configure( TSP_SCL, GPIOF_DRIVE_OUTPUT );
