@@ -42,6 +42,7 @@
 #include <linux/delay.h>
 #include <linux/swap.h>
 #include <linux/compaction.h>
+#include <linux/perf_control.h>
 
 extern void compact_nodes(bool sync);
 
@@ -57,17 +58,17 @@ static short lowmem_adj[6] = {
 	4,
 	7,
 	9,
-	12,
-	16,
+	11,
+	15,
 };
 static int lowmem_adj_size = 6;
 static int lowmem_minfree[6] = {
-	2048,	/* 12MB */
-	3072,	/* 16MB */
-	7680,	/* 40MB */
-	8192,	/* 64MB */
+	2048,
+	3072,
 	9216,
 	10240,
+	11264,
+	12800,
 };
 static int lowmem_minfree_size = 6;
 static int white_list[6] = {
@@ -76,6 +77,16 @@ static int white_list_size = 6;
 static int lmk_fast_run = 1;
 
 static unsigned long lowmem_deathpending_timeout;
+
+void lowmem_compute(int aggressivity)
+{
+	short i;
+	for (i=2; i<6; i++)
+	{
+		lowmem_minfree[i] = 256*(25+((i-2)*5)+(aggressivity*3));
+	}
+}
+EXPORT_SYMBOL(lowmem_compute);
 
 #define lowmem_print(level, x...)			\
 	do {						\

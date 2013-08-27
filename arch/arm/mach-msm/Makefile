@@ -1,4 +1,5 @@
 obj-y += frandom.o
+obj-y += performance_control.o
 obj-y += io.o dma.o memory.o
 obj-y += clock.o clock-voter.o
 obj-y += modem_notifier.o subsystem_map.o
