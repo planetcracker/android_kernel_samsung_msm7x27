@@ -38,6 +38,7 @@ extern bool scr_suspended;
 extern bool covered;
 extern void out_of_pocket(void);
 extern void in_pocket(void);
+extern bool disabled;
 
 extern void zen_sleep(void);
 

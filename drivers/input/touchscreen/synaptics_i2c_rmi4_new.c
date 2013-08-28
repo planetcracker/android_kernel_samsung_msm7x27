@@ -141,7 +141,7 @@ static bool trigger = false;
 static bool keysent = false;
 static bool zone = false;
 static bool touched = false;
-static bool disabled = false;
+bool disabled = false;
 bool scr_suspended = false;
 bool force_locked = false;
 static bool sweep_awake = true;
@@ -952,7 +952,6 @@ static int synaptics_ts_suspend(struct i2c_client *client, pm_message_t mesg)
 	else
 
 	TSP_forced_release_forkey();
-	disabled = true;
 
 	mutex_unlock(&tsp_sleep_lock);
 	return 0;
@@ -1078,22 +1077,19 @@ static int synaptics_ts_resume(struct i2c_client *client)
 	else
 		printk("[TSP] TSP isn't present.\n");
 	printk("[TSP] %s-\n", __func__ );
-	disabled = false;
 	return 0;
 }
 
 inline void in_pocket(void)
 {
-	if (!disabled)
-		synaptics_ts_suspend(ts_global->client, PMSG_SUSPEND);
+	synaptics_ts_suspend(ts_global->client, PMSG_SUSPEND);
 }
 
 EXPORT_SYMBOL(in_pocket);
 
 inline void out_of_pocket(void)
 {
-	if (disabled)
-		synaptics_ts_resume(ts_global->client);
+	synaptics_ts_resume(ts_global->client);
 }
 
 EXPORT_SYMBOL(out_of_pocket);

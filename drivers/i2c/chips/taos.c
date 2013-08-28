@@ -341,7 +341,8 @@ static void taos_work_func_prox(struct work_struct *work)
 			opt_i2c_write((CMD_REG|(PRX_MINTHRESHLO + i)),&prox_int_thresh[i]);
 		}
 
-		if (scr_suspended) {
+		if (scr_suspended && !disabled) {
+			disabled = true;
 			in_pocket();
 			zen_sleep();
 		}
@@ -362,7 +363,8 @@ static void taos_work_func_prox(struct work_struct *work)
 			opt_i2c_write((CMD_REG|(PRX_MINTHRESHLO + i)),&prox_int_thresh[i]);
 		}
 
-		if (scr_suspended) {
+		if (scr_suspended && disabled) {
+			disabled = false;
 			acpuclk_set_rate(0, 604800, SETRATE_CPUFREQ);
 			out_of_pocket();
 		}
