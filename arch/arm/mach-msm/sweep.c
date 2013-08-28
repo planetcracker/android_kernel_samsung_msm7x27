@@ -32,7 +32,9 @@ int pocket_keyguard;
 int doubletap;
 int mediacontrol;
 int sweeptolock;
+#ifdef CONFIG_MACH_TASS
 int sweepformenu;
+#endif
 int sweepkeyone;
 int sweepkeytwo;
 int sweepkeythree;
@@ -64,7 +66,9 @@ show_one(pocket_keyguard, pocket_keyguard);
 show_one(doubletap, doubletap);
 show_one(mediacontrol, mediacontrol);
 show_one(sweeptolock, sweeptolock);
+#ifdef CONFIG_MACH_TASS
 show_one(sweepformenu, sweepformenu);
+#endif
 show_one(sweepkeyone, sweepkeyone);
 show_one(sweepkeytwo, sweepkeytwo);
 show_one(sweepkeythree, sweepkeythree);
@@ -153,6 +157,7 @@ static ssize_t sweepkeyone_store(struct kobject *kobj, struct kobj_attribute *at
 	sweepkeyone = input;
 	return count;
 }
+#ifdef CONFIG_MACH_TASS
 static ssize_t sweepformenu_store(struct kobject *kobj, struct kobj_attribute *attr, const char *buf, size_t count)
 {
 	int input;
@@ -166,6 +171,7 @@ static ssize_t sweepformenu_store(struct kobject *kobj, struct kobj_attribute *a
 	sweepformenu = input;
 	return count;
 }
+#endif
 static ssize_t sweepkeytwo_store(struct kobject *kobj, struct kobj_attribute *attr, const char *buf, size_t count)
 {
 	int input;
@@ -247,10 +253,17 @@ static ssize_t wake_sens_factor_store(struct kobject *kobj, struct kobj_attribut
 	}
 
 	wake_sens_factor = input;
+#ifdef CONFIG_MACH_COOPER
+	wake_start = wake_sens_factor*15;
+	wake_end = 320-(wake_sens_factor*15);
+	area_start = 240-(wake_sens_factor*15);
+	area_end = 240+(wake_sens_factor*15);
+#else
 	wake_start = wake_sens_factor*10;
 	wake_end = 240-(wake_sens_factor*10);
 	area_start = 160-(wake_sens_factor*10);
 	area_end = 160+(wake_sens_factor*10);
+#endif
 	return count;
 }
 
@@ -266,7 +279,11 @@ static ssize_t key_sens_factor_store(struct kobject *kobj, struct kobj_attribute
 	}
 
 	key_sens_factor = input;
+#ifdef CONFIG_MACH_COOPER
+	key_trigger = 480-(100-(key_sens_factor*10));
+#else
 	key_trigger = 320-(100-(key_sens_factor*10));
+#endif
 	return count;
 }
 
@@ -282,7 +299,11 @@ static ssize_t deadzone_px_store(struct kobject *kobj, struct kobj_attribute *at
 	}
 
 	deadzone_px = input;
+#ifdef CONFIG_MACH_COOPER
+	deadzone = 480-deadzone_px;
+#else
 	deadzone = 320-deadzone_px;
+#endif
 	return count;
 }
 
@@ -297,7 +318,9 @@ define_kobj_rw_attr(doubletap);
 define_kobj_rw_attr(mediacontrol);
 define_kobj_rw_attr(sweeptolock);
 define_kobj_rw_attr(sweepkeyone);
+#ifdef CONFIG_MACH_TASS
 define_kobj_rw_attr(sweepformenu);
+#endif
 define_kobj_rw_attr(sweepkeytwo);
 define_kobj_rw_attr(sweepkeythree);
 define_kobj_rw_attr(keycode_one);
@@ -314,7 +337,9 @@ static struct attribute *sweeptowake_attrs[] = {
 &mediacontrol_attribute.attr,
 &sweeptolock_attribute.attr,
 &sweepkeyone_attribute.attr,
+#ifdef CONFIG_MACH_TASS
 &sweepformenu_attribute.attr,
+#endif
 &sweepkeytwo_attribute.attr,
 &sweepkeythree_attribute.attr,
 &keycode_one_attribute.attr,
@@ -343,21 +368,34 @@ static int __init sweep_init(void)
 	mediacontrol = (doubletap)?1:0; /* DoubleTap2PlayPause enabled by default */
 	sweeptolock = 1; /* Sweep2lock enabled by default */
 	sweepkeyone = 1;
+#ifdef CONFIG_MACH_TASS
 	sweepformenu = 1;
+#endif
 	sweepkeytwo = 1;
 	sweepkeythree = 1;
 	SKEY_ONE = KEY_SCALE;
 	SKEY_TWO = KEY_HOME;
 	SKEY_THREE = KEY_BACK;
 	wake_sens_factor = 4;
+#ifndef CONFIG_MACH_COOPER
 	key_sens_factor = 8;
 	deadzone_px = 3;
-	wake_start = wake_sens_factor*10;
-	wake_end = 240-(wake_sens_factor*10);
-	area_start = 160-(wake_sens_factor*10);
-	area_end = 160+(wake_sens_factor*10);
+	wake_start = wake_sens_factor*15;
+	wake_end = 240-(wake_sens_factor*15);
+	area_start = 160-(wake_sens_factor*15);
+	area_end = 160+(wake_sens_factor*15);
 	deadzone = 320-deadzone_px;
 	key_trigger = 320-(100-(key_sens_factor*10));
+#else
+	key_sens_factor = 6;
+	deadzone_px = 5;
+	wake_start = wake_sens_factor*10;
+	wake_end = 320-(wake_sens_factor*10);
+	area_start = 240-(wake_sens_factor*10);
+	area_end = 240+(wake_sens_factor*10);
+	deadzone = 480-deadzone_px;
+	key_trigger = 480-(100-(key_sens_factor*10));
+#endif
 
 	sweeptowake_kobj = kobject_create_and_add("sweep", kernel_kobj);
 	if (!sweeptowake_kobj) {

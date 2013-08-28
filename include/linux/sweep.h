@@ -21,7 +21,9 @@ extern int doubletap;
 extern int mediacontrol;
 extern int sweeptolock;
 extern int sweepkeyone;
+#ifdef CONFIG_MACH_TASS
 extern int sweepformenu;
+#endif
 extern int sweepkeytwo;
 extern int sweepkeythree;
 extern int SKEY_ONE;

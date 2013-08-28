@@ -250,7 +250,7 @@ static inline void sweep2wake_pwrtrigger(unsigned int cmd) {
 				mutex_unlock(&pwrlock);
 			}
 			break;
-
+#ifdef CONFIG_MACH_TASS
 		case 7:
 			{
 				keysent = true;
@@ -265,7 +265,7 @@ static inline void sweep2wake_pwrtrigger(unsigned int cmd) {
 				mutex_unlock(&pwrlock);
 			}
 			break;
-
+#endif
 
 		default:
 			{
@@ -626,10 +626,16 @@ static void synaptics_ts_work_func(struct work_struct *work)
 				if (fingerInfo[i].y < prevy) {
 						prevy = fingerInfo[i].y;
 						if (fingerInfo[i].y < key_trigger) {
+#ifdef CONFIG_MACH_TASS
 							if (sweepformenu && fingerInfo[i].x < 30 && fingerInfo[i].x >= 0) 
 								sweep2wake_pwrtrigger(7);
 							if (sweepkeyone && fingerInfo[i].x < 80 && fingerInfo[i].x >= 30) 
 								sweep2wake_pwrtrigger(3);
+#else
+							if (sweepkeyone && fingerInfo[i].x < 80 && fingerInfo[i].x >= 0) 
+								sweep2wake_pwrtrigger(3);
+#endif
+
 							if (sweepkeytwo && fingerInfo[i].x < 160 && fingerInfo[i].x >= 80) 
 								sweep2wake_pwrtrigger(4);
 							if (sweepkeythree && fingerInfo[i].x < 210 && fingerInfo[i].x >= 160) 
@@ -1114,7 +1120,11 @@ static void synaptics_ts_late_resume(struct early_suspend *h)
 		trigger = false;
 		prevx = 0;
 	}
+#ifdef CONFIG_MACH_TASS
+	sweep_awake = (sweepformenu || sweepkeyone || sweepkeytwo || sweepkeythree || sweeptolock)?true:false;
+#else
 	sweep_awake = (sweepkeyone || sweepkeytwo || sweepkeythree || sweeptolock)?true:false;
+#endif
 	if (doubletap) {
 		force_locked = false;
 	}
