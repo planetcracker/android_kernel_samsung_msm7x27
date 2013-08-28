@@ -85,22 +85,6 @@ struct shared_pll_control {
 	} pll[PLL_BASE + ACPU_PLL_END];
 };
 
-struct clkctl_acpu_speed {
-	unsigned int	use_for_scaling;
-	unsigned int	a11clk_khz;
-	int		pll;
-	unsigned int	a11clk_src_sel;
-	unsigned int	a11clk_src_div;
-	unsigned int	ahbclk_khz;
-	unsigned int	ahbclk_div;
-	int		vdd;
-	unsigned int 	axiclk_khz;
-	unsigned long	lpj; /* loops_per_jiffy */
-/* Pointers in acpu_freq_tbl[] for max up/down steppings. */
-	struct clkctl_acpu_speed *down[3];
-	struct clkctl_acpu_speed *up[3];
-};
-
 static remote_spinlock_t pll_lock;
 static struct shared_pll_control *pll_control;
 static struct clock_state drv_state = { 0 };
@@ -201,7 +185,7 @@ static struct clkctl_acpu_speed pll0_196_pll1_960_pll2_1200[] = {
 };
 
 /* 7x27 normal with GSM capable modem - PLL0 and PLL1 swapped */
-static struct clkctl_acpu_speed pll0_960_pll1_245_pll2_1200[] = {
+struct clkctl_acpu_speed pll0_960_pll1_245_pll2_1200[] = {
 	{ 0, 19200, ACPU_PLL_TCXO, 0, 0, 19200, 0, 0, 30720 },
 	{ 1, 66000, ACPU_PLL_1, 1, 1,  22000, 1, 0,  61440 },
 	{ 0, 120000, ACPU_PLL_0, 4, 7,  40000, 1, 0,  61440 },
@@ -268,65 +252,6 @@ static struct clkctl_acpu_speed pll0_960_pll1_196_pll2_800[] = {
 	{ 1, 800000, ACPU_PLL_2, 2, 0, 200000, 3, 7, 120000 },
 	{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, {0, 0, 0}, {0, 0, 0} }
 };
-
-void voltage_levels(int freq)
-{
-	switch (freq) {
-
-		case 66:
-			{
-				pll0_960_pll1_245_pll2_1200[1].vdd = volt_66;
-				pll0_960_pll1_245_pll2_1200[2].vdd = volt_66;
-			}
-			break;
-		case 122:
-			{
-				pll0_960_pll1_245_pll2_1200[3].vdd = volt_122;
-				pll0_960_pll1_245_pll2_1200[4].vdd = volt_122;
-			}
-			break;
-		case 245:
-			{
-				pll0_960_pll1_245_pll2_1200[5].vdd = volt_245;
-			}
-			break;
-		case 360:
-			{
-				pll0_960_pll1_245_pll2_1200[6].vdd = volt_360;
-			}
-			break;
-		case 480:
-			{
-				pll0_960_pll1_245_pll2_1200[7].vdd = volt_480;
-				pll0_960_pll1_245_pll2_1200[8].vdd = volt_480;
-			}
-			break;
-		case 604:
-			{
-				pll0_960_pll1_245_pll2_1200[9].vdd = volt_604;
-			}
-			break;
-		case 658:
-			{
-				pll0_960_pll1_245_pll2_1200[10].vdd = volt_658;
-#ifdef CONFIG_MACH_BENI
-				pll0_960_pll1_245_pll2_1200[11].vdd = volt_658;
-#endif
-			}
-			break;
-		case 770:
-			{
-#ifdef CONFIG_MACH_BENI
-				pll0_960_pll1_245_pll2_1200[12].vdd = volt_770;
-				pll0_960_pll1_245_pll2_1200[13].vdd = volt_770;
-#else
-				pll0_960_pll1_245_pll2_1200[11].vdd = volt_770;
-#endif
-			}
-			break;
-	}
-}
-EXPORT_SYMBOL(voltage_levels);
 
 #define PLL_196_MHZ	10
 #define PLL_245_MHZ	12
