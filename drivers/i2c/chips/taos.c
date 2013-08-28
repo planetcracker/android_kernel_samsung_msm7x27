@@ -342,10 +342,8 @@ static void taos_work_func_prox(struct work_struct *work)
 		}
 
 		if (scr_suspended) {
-			msleep(50);
 			in_pocket();
 			zen_sleep();
-			msleep(50);
 		}
 		mutex_unlock(&prossimo_lock);
 	}
@@ -365,10 +363,8 @@ static void taos_work_func_prox(struct work_struct *work)
 		}
 
 		if (scr_suspended) {
-			msleep(50);
 			acpuclk_set_rate(0, 604800, SETRATE_CPUFREQ);
 			out_of_pocket();
-			msleep(50);
 		}
 		mutex_unlock(&prossimo_lock);
 	}
