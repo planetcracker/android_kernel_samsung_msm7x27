@@ -983,7 +983,7 @@ static int __init lcdc_s6d16a0x_panel_init(void)
 	pinfo->pdest = DISPLAY_1;
 	pinfo->wait_cycle = 0;
 	pinfo->bpp = 24;
-	pinfo->fb_num = 2;
+	pinfo->fb_num = 3;
 	pinfo->clk_rate = (16384 * 1000);//(9388 * 1000);
 	pinfo->bl_max = 255;
 	pinfo->bl_min = 1;
