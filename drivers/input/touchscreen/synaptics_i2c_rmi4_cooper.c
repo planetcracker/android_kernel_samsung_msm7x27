@@ -1134,7 +1134,8 @@ static void synaptics_ts_late_resume(struct early_suspend *h)
 		force_locked = false;
 	}
 	mutex_unlock(&tsp_sleep_lock);
-	out_of_pocket();
+	if (disabled)
+		out_of_pocket();
 }
 #else
 static void synaptics_ts_early_suspend(struct early_suspend *h)
